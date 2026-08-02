@@ -1,0 +1,2739 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+app/globals.css
+app/layout.tsx
+app/page.tsx
+components/matrix/AddTaskModal.tsx
+components/matrix/CalendarView.tsx
+components/matrix/CyberDatePicker.tsx
+components/matrix/HabitTracker.tsx
+components/matrix/Header.tsx
+components/matrix/LevelUpModal.tsx
+components/matrix/MatrixRain.tsx
+components/matrix/PrestigeModal.tsx
+components/matrix/ProgressBar.tsx
+components/matrix/QuestTracker.tsx
+components/matrix/TaskCard.tsx
+components/matrix/XpSelector.tsx
+global.d.ts
+hooks/useMatrixData.ts
+lib/gamification.ts
+lib/sound.ts
+lib/themes.ts
+lib/utils.ts
+next-env.d.ts
+package.json
+postcss.config.js
+public/manifest.json
+tailwind.config.js
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="app/globals.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --matrix-bg: #030703;
+  --matrix-green: #00FF66;
+  --matrix-dark-green: #051A0B;
+  --matrix-border: #004D1F;
+  --matrix-glow: rgba(0, 255, 102, 0.4);
+  --matrix-green-rgb: 0, 255, 102;
+  --matrix-border-rgb: 0, 77, 31;
+}
+
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: var(--matrix-bg);
+  color: var(--matrix-green);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--matrix-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--matrix-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--matrix-green);
+  box-shadow: 0 0 8px var(--matrix-green);
+}
+
+.glow-text {
+  text-shadow: 0 0 8px var(--matrix-glow), 0 0 20px var(--matrix-glow);
+}
+
+.glow-border {
+  box-shadow: 0 0 10px var(--matrix-glow), inset 0 0 8px var(--matrix-glow);
+}
+
+.crt-overlay::before {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
+  background-size: 100% 6px;
+  z-index: 99;
+  pointer-events: none;
+  opacity: 0.3;
+}
+</file>
+
+<file path="app/layout.tsx">
+import type { Metadata, Viewport } from "next";
+import Script from "next/script";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Matrix Planner - Cyberpunk Planner & Tracker",
+  description: "Gamified planner and tracker in Matrix style",
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#030703",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="ru">
+      <head>
+        <Script 
+          src="https://telegram.org/js/telegram-web-app.js" 
+          strategy="beforeInteractive" 
+        />
+      </head>
+      <body className="bg-[#030703] text-[#00FF66] antialiased">
+        {children}
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="app/page.tsx">
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { Header } from "@/components/matrix/Header";
+import { TaskCard } from "@/components/matrix/TaskCard";
+import { HabitTracker } from "@/components/matrix/HabitTracker";
+import { QuestTracker } from "@/components/matrix/QuestTracker";
+import { CalendarView } from "@/components/matrix/CalendarView";
+import { CyberDatePicker } from "@/components/matrix/CyberDatePicker";
+import { MatrixRain } from "@/components/matrix/MatrixRain";
+import { XpSelector } from "@/components/matrix/XpSelector";
+import { LevelUpModal } from "@/components/matrix/LevelUpModal";
+import { PrestigeModal } from "@/components/matrix/PrestigeModal";
+import { useMatrixData } from "@/hooks/useMatrixData";
+import { getTodayStr, formatDateRu } from "@/lib/utils";
+import { THEMES, getThemeById } from "@/lib/themes";
+import { Plus, CheckSquare, Repeat, Calendar, Trophy, CalendarRange, Download, Upload, CloudRain, Palette } from "lucide-react";
+
+export default function Home() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const {
+    mounted,
+    activeTab,
+    setActiveTab,
+    matrixRain,
+    setMatrixRain,
+    level,
+    highestLevel,
+    xp,
+    prestige,
+    currentTheme,
+    setCurrentTheme,
+    levelUpData,
+    setLevelUpData,
+    activatePrestige,
+    totalStreak,
+    tasks,
+    setTasks,
+    habits,
+    setHabits,
+    quests,
+    setQuests,
+    toggleTask,
+    deleteTask,
+    toggleHabitDate,
+    deleteHabit,
+    toggleSubtask,
+    addSubtaskToQuest,
+    deleteQuest,
+    exportData,
+    importData,
+  } = useMatrixData();
+
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const theme = getThemeById(currentTheme);
+    const root = document.documentElement;
+    root.style.setProperty("--matrix-bg", theme.cssVars.bg);
+    root.style.setProperty("--matrix-green", theme.cssVars.primary);
+    root.style.setProperty("--matrix-dark-green", theme.cssVars.darkPrimary);
+    root.style.setProperty("--matrix-border", theme.cssVars.border);
+    root.style.setProperty("--matrix-glow", theme.cssVars.glow);
+    root.style.setProperty("--matrix-green-rgb", theme.cssVars.primaryRgb);
+    root.style.setProperty("--matrix-border-rgb", theme.cssVars.borderRgb);
+  }, [currentTheme]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as unknown as { Telegram?: { WebApp?: { expand: () => void } } }).Telegram?.WebApp) {
+      (window as unknown as { Telegram: { WebApp: { expand: () => void } } }).Telegram.WebApp.expand();
+    }
+  }, []);
+
+  const [inputTitle, setInputTitle] = useState("");
+  const [inputDueDate, setInputDueDate] = useState(getTodayStr());
+
+  const [selectedXp, setSelectedXp] = useState(15);
+  const [questXp, setQuestXp] = useState(300);
+  const [questSubtaskXp, setQuestSubtaskXp] = useState(15);
+
+  const [enableQuestSchedule, setEnableQuestSchedule] = useState(false);
+  const [questStartDate, setQuestStartDate] = useState(getTodayStr());
+  const [questEndDate, setQuestEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split("T")[0];
+  });
+  const [questUnit, setQuestUnit] = useState("этапов");
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 3, 5]);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-[#030703] text-[#00FF66] flex items-center justify-center font-mono tracking-widest animate-pulse">
+        [INITIALIZING_MATRIX_CORE...]
+      </div>
+    );
+  }
+
+  const handleAddItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputTitle.trim()) return;
+
+    if (activeTab === "tasks" || activeTab === "calendar") {
+      setTasks(prev => [{
+        id: Date.now().toString(),
+        title: inputTitle,
+        category: "todo",
+        dueDate: inputDueDate,
+        xpReward: selectedXp,
+        completed: false
+      }, ...prev]);
+    } else if (activeTab === "habits") {
+      setHabits(prev => [...prev, {
+        id: Date.now().toString(),
+        title: inputTitle,
+        xpReward: selectedXp,
+        history: {}
+      }]);
+    } else if (activeTab === "quests") {
+      const generatedSubtasks: { id: string; title: string; dueDate?: string; xpReward: number; completed: boolean }[] = [];
+
+      if (enableQuestSchedule && questStartDate && questEndDate && selectedDays.length > 0) {
+        const start = new Date(questStartDate);
+        const end = new Date(questEndDate);
+        
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const dayOfWeek = d.getDay();
+          if (selectedDays.includes(dayOfWeek)) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const dayNum = String(d.getDate()).padStart(2, "0");
+            const dateStr = `${y}-${m}-${dayNum}`;
+
+            generatedSubtasks.push({
+              id: `${Date.now()}-${generatedSubtasks.length}`,
+              title: `${inputTitle} (${formatDateRu(dateStr)})`,
+              dueDate: dateStr,
+              xpReward: questSubtaskXp,
+              completed: false
+            });
+          }
+        }
+      }
+
+      setQuests(prev => [...prev, {
+        id: Date.now().toString(),
+        title: inputTitle,
+        targetUnit: questUnit || "этапов",
+        scheduleDays: enableQuestSchedule ? selectedDays : undefined,
+        xpReward: questXp,
+        subtaskXpReward: questSubtaskXp,
+        subtasks: generatedSubtasks
+      }]);
+
+      setEnableQuestSchedule(false);
+    }
+
+    setInputTitle("");
+  };
+
+  return (
+    <div className="min-h-screen bg-[var(--matrix-bg)] text-[var(--matrix-green)] crt-overlay pb-12 font-mono relative transition-colors duration-300">
+      <MatrixRain active={matrixRain} themeId={currentTheme} />
+
+      <Header 
+        level={level} 
+        currentXp={xp} 
+        streak={totalStreak} 
+        prestige={prestige}
+        onOpenThemeModal={() => setShowThemeModal(true)}
+        onOpenPrestigeModal={() => setShowPrestigeModal(true)}
+      />
+
+      <LevelUpModal data={levelUpData} onClose={() => setLevelUpData(null)} />
+
+      <PrestigeModal 
+        isOpen={showPrestigeModal} 
+        prestige={prestige} 
+        onConfirm={activatePrestige} 
+        onClose={() => setShowPrestigeModal(false)} 
+      />
+
+      {/* МОДАЛЬНОЕ ОКНО ВЫБОРА ТЕМ */}
+      {showThemeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[var(--matrix-dark-green)] border border-[var(--matrix-green)] p-5 rounded-lg max-w-sm w-full space-y-4 glow-border">
+            <h3 className="text-sm font-bold text-[var(--matrix-green)] tracking-widest flex items-center gap-2">
+              <Palette className="w-4 h-4" /> SELECT TERMINAL THEME
+            </h3>
+            <div className="space-y-2">
+              {THEMES.map((theme) => {
+                // Тема открыта, если разблокирована сейчас, если был престиж, или если уровень достигался ранее
+                const isUnlocked = prestige > 0 || highestLevel >= theme.levelRequired || level >= theme.levelRequired;
+                const isSelected = currentTheme === theme.id;
+
+                return (
+                  <button
+                    key={theme.id}
+                    disabled={!isUnlocked}
+                    onClick={() => {
+                      setCurrentTheme(theme.id);
+                      setShowThemeModal(false);
+                    }}
+                    className={`w-full flex items-center justify-between p-2.5 rounded border text-xs transition-all ${
+                      isSelected
+                        ? "border-[var(--matrix-green)] bg-[var(--matrix-green)]/20 font-bold text-white shadow-[0_0_8px_var(--matrix-green)]"
+                        : isUnlocked
+                          ? "border-[var(--matrix-border)] bg-[var(--matrix-bg)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
+                          : "border-[var(--matrix-border)]/30 bg-[var(--matrix-bg)]/40 text-gray-600 cursor-not-allowed"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: theme.primaryHex }} />
+                      <span>{theme.name}</span>
+                    </div>
+                    {!isUnlocked && (
+                      <span className="text-[9px] border border-gray-700 px-1.5 py-0.5 rounded text-gray-500">
+                        🔒 LVL {theme.levelRequired}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setShowThemeModal(false)}
+              className="w-full bg-[var(--matrix-bg)] border border-[var(--matrix-border)] text-gray-300 py-2 rounded text-xs hover:border-[var(--matrix-green)]"
+            >
+              ЗАКРЫТЬ
+            </button>
+          </div>
+        </div>
+      )}
+
+      <main className="max-w-4xl mx-auto px-4 mt-6 relative z-10">
+        
+        {/* ПАНЕЛЬ ИНСТРУМЕНТОВ */}
+        <div className="flex items-center justify-between gap-2 mb-4 bg-[var(--matrix-dark-green)] p-2 rounded border border-[var(--matrix-border)] text-xs">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMatrixRain(!matrixRain)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded border font-bold transition-all ${
+                matrixRain 
+                  ? "bg-[var(--matrix-green)] text-black border-[var(--matrix-green)] shadow-[0_0_8px_var(--matrix-green)]" 
+                  : "bg-[var(--matrix-bg)] border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
+              }`}
+            >
+              <CloudRain className="w-3.5 h-3.5" />
+              RAIN: {matrixRain ? "ON" : "OFF"}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportData}
+              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2.5 py-1 rounded text-[var(--matrix-green)]"
+              title="Скачать бэкап (.json)"
+            >
+              <Download className="w-3.5 h-3.5" /> EXPORT
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2.5 py-1 rounded text-[var(--matrix-green)]"
+              title="Загрузить бэкап (.json)"
+            >
+              <Upload className="w-3.5 h-3.5" /> IMPORT
+            </button>
+
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={(e) => {
+                if (e.target.files?.[0]) importData(e.target.files[0]);
+              }} 
+              accept=".json" 
+              className="hidden" 
+            />
+          </div>
+        </div>
+
+        {/* ВКЛАДКИ НАВИГАЦИИ */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab("tasks")}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+              activeTab === "tasks"
+                ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
+                : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
+            }`}
+          >
+            <CheckSquare className="w-4 h-4" /> [⚡ ЗАДАЧИ]
+          </button>
+
+          <button
+            onClick={() => setActiveTab("habits")}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+              activeTab === "habits"
+                ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
+                : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
+            }`}
+          >
+            <Repeat className="w-4 h-4" /> [🔄 ПРИВЫЧКИ]
+          </button>
+
+          <button
+            onClick={() => setActiveTab("quests")}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+              activeTab === "quests"
+                ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.6)]"
+                : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-yellow-500/80 hover:border-yellow-500"
+            }`}
+          >
+            <Trophy className="w-4 h-4" /> [🏆 КВЕСТЫ]
+          </button>
+
+          <button
+            onClick={() => setActiveTab("calendar")}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+              activeTab === "calendar"
+                ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
+                : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
+            }`}
+          >
+            <Calendar className="w-4 h-4" /> [📅 КАЛЕНДАРЬ]
+          </button>
+        </div>
+
+        {/* УМНАЯ СТРОКА ДОБАВЛЕНИЯ */}
+        <form onSubmit={handleAddItem} className="mb-6 p-4 bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] rounded glow-border space-y-3">
+          <div className="flex flex-col sm:flex-row items-center gap-2.5">
+            <input 
+              type="text"
+              value={inputTitle}
+              onChange={(e) => setInputTitle(e.target.value)}
+              placeholder={
+                activeTab === "tasks" ? "> Добавить новую задачу..." :
+                activeTab === "habits" ? "> Создать новую ежедневную привычку..." :
+                activeTab === "quests" ? "> Название эпического квеста (напр: Прочитать 5 книг)..." :
+                "> Запланировать задачу в календарь..."
+              }
+              className="flex-1 w-full bg-[var(--matrix-bg)] border border-[var(--matrix-border)] focus:border-[var(--matrix-green)] text-white px-3 py-2 rounded text-sm outline-none font-mono"
+            />
+            
+            {(activeTab === "tasks" || activeTab === "habits" || activeTab === "calendar") && (
+              <XpSelector value={selectedXp} onChange={setSelectedXp} />
+            )}
+
+            {activeTab === "quests" && (
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-yellow-400 font-bold">КВЕСТ:</span>
+                  <XpSelector value={questXp} onChange={setQuestXp} compact />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-yellow-400 font-bold">ЭТАП:</span>
+                  <XpSelector value={questSubtaskXp} onChange={setQuestSubtaskXp} compact />
+                </div>
+              </div>
+            )}
+
+            {(activeTab === "tasks" || activeTab === "calendar") && (
+              <CyberDatePicker value={inputDueDate} onChange={setInputDueDate} />
+            )}
+
+            {activeTab === "quests" && (
+              <input
+                type="text"
+                value={questUnit}
+                onChange={(e) => setQuestUnit(e.target.value)}
+                placeholder="Ед. (этапов)"
+                className="w-24 bg-[var(--matrix-bg)] border border-yellow-500/50 text-yellow-400 px-2 py-2 rounded text-xs outline-none font-mono"
+              />
+            )}
+
+            <button 
+              type="submit"
+              className={`font-bold px-4 py-2 rounded text-xs flex items-center justify-center gap-1 transition-colors shrink-0 ${
+                activeTab === "quests" ? "bg-yellow-500 text-black hover:bg-yellow-400" : "bg-[var(--matrix-green)] text-black hover:bg-[#00CC52]"
+              }`}
+            >
+              <Plus className="w-4 h-4 stroke-[3]" /> ADD
+            </button>
+          </div>
+
+          {activeTab === "quests" && (
+            <div className="pt-2 border-t border-[var(--matrix-border)] space-y-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEnableQuestSchedule(!enableQuestSchedule)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border font-bold transition-all ${
+                    enableQuestSchedule
+                      ? "bg-yellow-500/20 border-yellow-500 text-yellow-400"
+                      : "bg-[var(--matrix-bg)] border-[var(--matrix-border)] text-gray-400 hover:border-yellow-500/50"
+                  }`}
+                >
+                  <CalendarRange className="w-3.5 h-3.5" />
+                  {enableQuestSchedule ? "[x] ДАТА ДОБАВЛЕНА" : "+ Авто-график"}
+                </button>
+              </div>
+
+              {enableQuestSchedule && (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[var(--matrix-bg)] p-3 rounded border border-yellow-500/30">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-yellow-400/80 text-[10px]">СТАРТ:</span>
+                    <CyberDatePicker value={questStartDate} onChange={setQuestStartDate} />
+                    <span className="text-yellow-400/80 text-[10px]">ФИНИШ:</span>
+                    <CyberDatePicker value={questEndDate} onChange={setQuestEndDate} />
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"].map((dName, dayIdx) => {
+                      const selected = selectedDays.includes(dayIdx);
+                      return (
+                        <button
+                          key={dName}
+                          type="button"
+                          onClick={() => {
+                            if (selected) setSelectedDays(selectedDays.filter(d => d !== dayIdx));
+                            else setSelectedDays([...selectedDays, dayIdx]);
+                          }}
+                          className={`px-2 py-0.5 rounded text-[10px] border ${
+                            selected ? "bg-yellow-500 border-yellow-500 text-black font-bold" : "border-[var(--matrix-border)] text-gray-400"
+                          }`}
+                        >
+                          {dName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </form>
+
+        {/* ВКЛАДКА 1: ЗАДАЧИ */}
+        {activeTab === "tasks" && (
+          <section>
+            <h2 className="text-xs font-mono text-[var(--matrix-green)]/80 mb-3 tracking-widest uppercase">
+              // ACTIVE_DIRECTIVES ({tasks.filter(t => !t.completed).length})
+            </h2>
+            <div className="space-y-1">
+              {tasks.map(task => (
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  onToggle={toggleTask} 
+                  onDelete={deleteTask} 
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ВКЛАДКА 2: ПРИВЫЧКИ */}
+        {activeTab === "habits" && (
+          <section>
+            <h2 className="text-xs font-mono text-[var(--matrix-green)]/80 mb-3 tracking-widest uppercase">
+              // DAILY_DAEMON_ROUTINES ({habits.length})
+            </h2>
+            <HabitTracker 
+              habits={habits} 
+              onToggleHabitDate={toggleHabitDate} 
+              onDeleteHabit={deleteHabit} 
+            />
+          </section>
+        )}
+
+        {/* ВКЛАДКА 3: КВЕСТЫ */}
+        {activeTab === "quests" && (
+          <section>
+            <h2 className="text-xs font-mono text-yellow-400/80 mb-3 tracking-widest uppercase">
+              // EPIC_LONG_TERM_QUESTS ({quests.length})
+            </h2>
+            <QuestTracker 
+              quests={quests} 
+              onToggleSubtask={toggleSubtask} 
+              onAddSubtask={addSubtaskToQuest} 
+              onDeleteQuest={deleteQuest} 
+            />
+          </section>
+        )}
+
+        {/* ВКЛАДКА 4: КАЛЕНДАРЬ */}
+        {activeTab === "calendar" && (
+          <section>
+            <CalendarView 
+              tasks={tasks}
+              habits={habits}
+              quests={quests}
+              selectedDateStr={inputDueDate}
+              onSelectDate={setInputDueDate}
+              onToggleTask={toggleTask}
+              onDeleteTask={deleteTask}
+              onToggleSubtask={toggleSubtask}
+            />
+          </section>
+        )}
+
+      </main>
+    </div>
+  );
+}
+</file>
+
+<file path="components/matrix/AddTaskModal.tsx">
+
+</file>
+
+<file path="components/matrix/CalendarView.tsx">
+"use client";
+
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, Check, Trash2, Calendar as CalendarIcon, ShieldCheck } from "lucide-react";
+import { formatDateRu } from "@/lib/utils";
+import { Task } from "./TaskCard";
+import { Habit } from "./HabitTracker";
+import { Quest } from "./QuestTracker";
+import { soundFx } from "@/lib/sound";
+
+interface CalendarViewProps {
+  tasks: Task[];
+  habits: Habit[];
+  quests: Quest[];
+  selectedDateStr: string;
+  onSelectDate: (dateStr: string) => void;
+  onToggleTask: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+  onToggleSubtask: (questId: string, subtaskId: string) => void;
+}
+
+export const CalendarView = ({
+  tasks,
+  habits,
+  quests,
+  selectedDateStr,
+  onSelectDate,
+  onToggleTask,
+  onDeleteTask,
+  onToggleSubtask,
+}: CalendarViewProps) => {
+  const initialDate = selectedDateStr ? new Date(selectedDateStr) : new Date();
+  const [currentMonthDate, setCurrentMonthDate] = useState(initialDate);
+
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
+
+  const monthNames = ["ЯНВАРЬ", "ФЕВРАЛЬ", "МАРТ", "АПРЕЛЬ", "МАЙ", "ИЮНЬ", "ИЮЛЬ", "АВГУСТ", "СЕНТЯБРЬ", "ОКТЯБРЬ", "НОЯБРЬ", "ДЕКАБРЬ"];
+
+  const handlePrevMonth = () => setCurrentMonthDate(new Date(year, month - 1, 1));
+  const handleNextMonth = () => setCurrentMonthDate(new Date(year, month + 1, 1));
+
+  const getItemsForDate = (dateStr: string) => {
+    const dayTasks = tasks.filter(t => t.dueDate === dateStr);
+    
+    const questSubtasks: { questId: string; subtaskId: string; questTitle: string; title: string; xpReward?: number; completed: boolean }[] = [];
+    quests.forEach(q => {
+      q.subtasks.forEach(s => {
+        if (s.dueDate === dateStr) {
+          questSubtasks.push({ 
+            questId: q.id, 
+            subtaskId: s.id, 
+            questTitle: q.title, 
+            title: s.title, 
+            xpReward: s.xpReward || q.subtaskXpReward || 15,
+            completed: s.completed 
+          });
+        }
+      });
+    });
+
+    const completedHabits = habits.filter(h => !!h.history[dateStr]);
+
+    return { dayTasks, questSubtasks, completedHabits };
+  };
+
+  const selectedItems = getItemsForDate(selectedDateStr);
+
+  return (
+    <div className="space-y-4 font-mono">
+      {/* Сетка месяца */}
+      <div className="bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] p-4 rounded glow-border">
+        
+        {/* Навигация Месяцев */}
+        <div className="flex items-center justify-between mb-4 border-b border-[var(--matrix-border)] pb-3">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4 text-[var(--matrix-green)]" />
+            <h3 className="text-sm tracking-widest text-[var(--matrix-green)] font-bold">
+              DATA_STREAM // {monthNames[month]} {year}
+            </h3>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={handlePrevMonth} className="p-1 border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] rounded text-[var(--matrix-green)]">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={handleNextMonth} className="p-1 border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] rounded text-[var(--matrix-green)]">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Дни недели */}
+        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+          {["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"].map(d => (
+            <div key={d} className="text-[10px] text-[var(--matrix-green)] font-bold opacity-80">{d}</div>
+          ))}
+        </div>
+
+        {/* Сетка дат */}
+        <div className="grid grid-cols-7 gap-1.5">
+          {Array.from({ length: firstDayIndex }).map((_, i) => (
+            <div key={`empty-${i}`} className="h-10 opacity-0" />
+          ))}
+
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const dayNum = i + 1;
+            const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+            const { dayTasks, questSubtasks, completedHabits } = getItemsForDate(dStr);
+            const totalCount = dayTasks.length + questSubtasks.length + completedHabits.length;
+            const isSelected = selectedDateStr === dStr;
+
+            return (
+              <button
+                key={dStr}
+                onClick={() => onSelectDate(dStr)}
+                style={{
+                  backgroundColor: isSelected 
+                    ? "var(--matrix-green)" 
+                    : totalCount > 0 
+                      ? "rgba(var(--matrix-green-rgb), 0.15)" 
+                      : "var(--matrix-bg)",
+                  borderColor: isSelected || totalCount > 0 
+                    ? "var(--matrix-green)" 
+                    : "rgba(var(--matrix-border-rgb), 0.4)",
+                  color: isSelected 
+                    ? "#000000" 
+                    : "var(--matrix-green)"
+                }}
+                className={`h-11 rounded border flex flex-col items-center justify-center text-xs transition-all relative font-bold ${
+                  isSelected ? "shadow-[0_0_10px_var(--matrix-green)]" : "hover:border-[var(--matrix-green)]"
+                }`}
+              >
+                <span>{dayNum}</span>
+                {totalCount > 0 && !isSelected && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--matrix-green)] shadow-[0_0_4px_var(--matrix-green)] mt-0.5" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* События выбранного дня */}
+      <div className="bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] p-4 rounded glow-border">
+        <div className="flex items-center justify-between border-b border-[var(--matrix-border)] pb-2 mb-3">
+          <h4 className="text-xs font-bold text-white flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-[var(--matrix-green)]" /> ЛОГ ВЗЛОМА НА: <span className="text-[var(--matrix-green)]">{formatDateRu(selectedDateStr)}</span>
+          </h4>
+        </div>
+
+        <div className="space-y-2">
+          {selectedItems.dayTasks.map(task => (
+            <div key={task.id} className="flex items-center justify-between bg-[var(--matrix-bg)] p-2 rounded border border-[var(--matrix-border)]">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (!task.completed) soundFx.playComplete();
+                    onToggleTask(task.id);
+                  }}
+                  className={`w-4 h-4 rounded border flex items-center justify-center ${task.completed ? "bg-[var(--matrix-green)] border-[var(--matrix-green)] text-black" : "border-[var(--matrix-border)]"}`}
+                >
+                  {task.completed && <Check className="w-3 h-3 stroke-[3]" />}
+                </button>
+                <span className={`text-xs ${task.completed ? "line-through text-gray-500" : "text-white"}`}>{task.title}</span>
+              </div>
+              <button onClick={() => onDeleteTask(task.id)} className="text-red-500/60 hover:text-red-400 p-1">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+
+          {selectedItems.questSubtasks.map((sub) => (
+            <div key={sub.subtaskId} className="flex items-center justify-between bg-yellow-500/5 p-2 rounded border border-yellow-500/30 text-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (!sub.completed) soundFx.playComplete();
+                    onToggleSubtask(sub.questId, sub.subtaskId);
+                  }}
+                  className={`w-4 h-4 rounded border flex items-center justify-center ${sub.completed ? "bg-yellow-400 border-yellow-400 text-black" : "border-yellow-500/40"}`}
+                >
+                  {sub.completed && <Check className="w-3 h-3 stroke-[3]" />}
+                </button>
+                <span className="font-bold text-[9px] bg-yellow-500/20 text-yellow-400 px-1 py-0.5 rounded">КВЕСТ: {sub.questTitle}</span>
+                <span className={`text-xs ${sub.completed ? "line-through text-gray-500" : "text-yellow-200"}`}>{sub.title}</span>
+              </div>
+              <span className="text-[10px] text-yellow-400 font-bold">+{sub.xpReward} XP</span>
+            </div>
+          ))}
+
+          {selectedItems.completedHabits.map(habit => (
+            <div key={habit.id} className="flex items-center gap-2 bg-cyan-500/5 p-2 rounded border border-cyan-500/30 text-xs text-cyan-300">
+              <Check className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Привычка выполнена: {habit.title} (+{habit.xpReward || 15} XP)</span>
+            </div>
+          ))}
+
+          {selectedItems.dayTasks.length === 0 && selectedItems.questSubtasks.length === 0 && selectedItems.completedHabits.length === 0 && (
+            <p className="text-xs text-[var(--matrix-green)]/50 text-center py-3">[НЕТ ЗАПЛАНИРОВАННЫХ СОБЫТИЙ В ЭТОТ ДЕНЬ]</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/CyberDatePicker.tsx">
+"use client";
+
+import { ChevronUp, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
+
+interface CyberDatePickerProps {
+  value: string;
+  onChange: (newDateStr: string) => void;
+}
+
+export const CyberDatePicker = ({ value, onChange }: CyberDatePickerProps) => {
+  const dateObj = value ? new Date(value) : new Date();
+  const year = dateObj.getFullYear();
+  const month = dateObj.getMonth();
+  const day = dateObj.getDate();
+
+  const updateDate = (newY: number, newM: number, newD: number) => {
+    const maxDays = new Date(newY, newM + 1, 0).getDate();
+    const validD = Math.min(Math.max(1, newD), maxDays);
+    const validM = Math.min(Math.max(0, newM), 11);
+
+    const formattedY = newY;
+    const formattedM = String(validM + 1).padStart(2, "0");
+    const formattedD = String(validD).padStart(2, "0");
+
+    onChange(`${formattedY}-${formattedM}-${formattedD}`);
+  };
+
+  const handleWheelDay = (e: React.WheelEvent) => {
+    e.preventDefault();
+    updateDate(year, month, day + (e.deltaY < 0 ? 1 : -1));
+  };
+
+  const handleWheelMonth = (e: React.WheelEvent) => {
+    e.preventDefault();
+    updateDate(year, month + (e.deltaY < 0 ? 1 : -1), day);
+  };
+
+  const handleWheelYear = (e: React.WheelEvent) => {
+    e.preventDefault();
+    updateDate(year + (e.deltaY < 0 ? 1 : -1), month, day);
+  };
+
+  return (
+    <div className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] px-2 py-1 rounded font-mono text-xs select-none">
+      <CalendarIcon className="w-4 h-4 text-[var(--matrix-green)] mr-1" />
+
+      {/* ДЕНЬ */}
+      <div className="flex flex-col items-center group cursor-pointer" onWheel={handleWheelDay}>
+        <button type="button" onClick={() => updateDate(year, month, day + 1)} className="text-[var(--matrix-green)]/70 hover:text-[var(--matrix-green)]">
+          <ChevronUp className="w-3 h-3" />
+        </button>
+        <span className="font-bold text-[var(--matrix-green)] bg-[var(--matrix-dark-green)] px-1.5 py-0.5 rounded border border-[var(--matrix-border)] hover:border-[var(--matrix-green)]">
+          {String(day).padStart(2, "0")}
+        </span>
+        <button type="button" onClick={() => updateDate(year, month, day - 1)} className="text-[var(--matrix-green)]/70 hover:text-[var(--matrix-green)]">
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      </div>
+
+      <span className="text-[var(--matrix-green)] font-bold">.</span>
+
+      {/* МЕСЯЦ */}
+      <div className="flex flex-col items-center group cursor-pointer" onWheel={handleWheelMonth}>
+        <button type="button" onClick={() => updateDate(year, month + 1, day)} className="text-[var(--matrix-green)]/70 hover:text-[var(--matrix-green)]">
+          <ChevronUp className="w-3 h-3" />
+        </button>
+        <span className="font-bold text-[var(--matrix-green)] bg-[var(--matrix-dark-green)] px-1.5 py-0.5 rounded border border-[var(--matrix-border)] hover:border-[var(--matrix-green)]">
+          {String(month + 1).padStart(2, "0")}
+        </span>
+        <button type="button" onClick={() => updateDate(year, month - 1, day)} className="text-[var(--matrix-green)]/70 hover:text-[var(--matrix-green)]">
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      </div>
+
+      <span className="text-[var(--matrix-green)] font-bold">.</span>
+
+      {/* ГОД */}
+      <div className="flex flex-col items-center group cursor-pointer" onWheel={handleWheelYear}>
+        <button type="button" onClick={() => updateDate(year + 1, month, day)} className="text-[var(--matrix-green)]/70 hover:text-[var(--matrix-green)]">
+          <ChevronUp className="w-3 h-3" />
+        </button>
+        <span className="font-bold text-[var(--matrix-green)] bg-[var(--matrix-dark-green)] px-1.5 py-0.5 rounded border border-[var(--matrix-border)] hover:border-[var(--matrix-green)]">
+          {year}
+        </span>
+        <button type="button" onClick={() => updateDate(year - 1, month, day)} className="text-[var(--matrix-green)]/70 hover:text-[var(--matrix-green)]">
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/HabitTracker.tsx">
+"use client";
+
+import { Check, Flame, Trash2, Lock } from "lucide-react";
+import { soundFx } from "@/lib/sound";
+import { calculateStreak } from "@/lib/utils";
+
+export interface Habit {
+  id: string;
+  title: string;
+  xpReward: number;
+  history: Record<string, boolean>;
+}
+
+interface HabitTrackerProps {
+  habits: Habit[];
+  onToggleHabitDate: (id: string, dateStr: string) => void;
+  onDeleteHabit: (id: string) => void;
+}
+
+const WEEK_DAYS = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
+
+export const HabitTracker = ({ habits, onToggleHabitDate, onDeleteHabit }: HabitTrackerProps) => {
+  const getWeekDays = () => {
+    const now = new Date();
+    const currentDayOfWeek = now.getDay();
+    const distanceToMon = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+    
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + distanceToMon);
+
+    return WEEK_DAYS.map((name, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      const isFuture = d > now && d.toDateString() !== now.toDateString();
+      const isToday = d.toDateString() === now.toDateString();
+
+      return { name, dateStr, dayNum: d.getDate(), isFuture, isToday };
+    });
+  };
+
+  const week = getWeekDays();
+
+  return (
+    <div className="space-y-3 font-mono">
+      {habits.map((habit) => {
+        const streak = calculateStreak(habit.history);
+
+        return (
+          <div 
+            key={habit.id}
+            className="bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] p-4 rounded glow-border flex flex-col sm:flex-row sm:items-center justify-between gap-4 group transition-colors duration-300"
+          >
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                {/* Полупрозрачная аккуратная плашка привычки */}
+                <span 
+                  style={{
+                    backgroundColor: "rgba(var(--matrix-green-rgb), 0.12)",
+                    borderColor: "rgba(var(--matrix-green-rgb), 0.3)",
+                    color: "var(--matrix-green)",
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded border tracking-widest font-bold"
+                >
+                  DAEMON ROUTINE (+{habit.xpReward || 15} XP)
+                </span>
+                <span className="text-xs text-[var(--matrix-green)] flex items-center gap-1 font-bold">
+                  <Flame className="w-3.5 h-3.5 text-[var(--matrix-green)]" /> {streak} ДНЕЙ СТРЕК
+                </span>
+              </div>
+              <h3 className="text-sm font-semibold text-white">{habit.title}</h3>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                {week.map((w) => {
+                  const isDone = !!habit.history[w.dateStr];
+                  return (
+                    <button
+                      key={w.dateStr}
+                      disabled={w.isFuture}
+                      onClick={() => {
+                        if (!isDone) soundFx.playComplete();
+                        onToggleHabitDate(habit.id, w.dateStr);
+                      }}
+                      title={w.isFuture ? "День еще не наступил" : w.dateStr}
+                      className={`flex flex-col items-center justify-center w-8 h-10 rounded border text-[10px] transition-all relative ${
+                        w.isFuture
+                          ? "bg-[var(--matrix-bg)] border-[var(--matrix-border)] border-opacity-30 text-gray-600 cursor-not-allowed"
+                          : isDone 
+                            ? "bg-[var(--matrix-green)] border-[var(--matrix-green)] text-black font-bold shadow-[0_0_8px_var(--matrix-green)]" 
+                            : w.isToday
+                              ? "bg-[var(--matrix-bg)] border-[var(--matrix-green)] text-[var(--matrix-green)]"
+                              : "bg-[var(--matrix-bg)] border-[var(--matrix-border)] text-[var(--matrix-green)] text-opacity-80 hover:border-[var(--matrix-green)]"
+                      }`}
+                    >
+                      <span className="text-[8px] opacity-80">{w.name}</span>
+                      <span className="text-[10px] font-bold">{w.dayNum}</span>
+                      {w.isFuture ? (
+                        <Lock className="w-2.5 h-2.5 opacity-40 mt-0.5" />
+                      ) : isDone ? (
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => onDeleteHabit(habit.id)}
+                className="text-red-500/60 hover:text-red-400 p-1.5 transition-colors"
+                title="Удалить привычку"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/Header.tsx">
+"use client";
+
+import { useState, useEffect } from "react";
+import { soundFx } from "@/lib/sound";
+import { Flame, Shield, Volume2, VolumeX, Palette, Zap, Star } from "lucide-react";
+import { getXpNeededForLevel, getRankProgress, toRomanNumeral, getPrestigeMultiplier } from "@/lib/gamification";
+
+interface HeaderProps {
+  level: number;
+  currentXp: number;
+  streak: number;
+  prestige: number;
+  onOpenThemeModal: () => void;
+  onOpenPrestigeModal: () => void;
+}
+
+export const Header = ({
+  level,
+  currentXp,
+  streak,
+  prestige,
+  onOpenThemeModal,
+  onOpenPrestigeModal,
+}: HeaderProps) => {
+  const [muted, setMuted] = useState(false);
+  const [currentDate, setCurrentDate] = useState("");
+
+  useEffect(() => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = now.getFullYear();
+    setCurrentDate(`${day}.${month}.${year}`);
+  }, []);
+
+  const maxXp = getXpNeededForLevel(level);
+  const xpPercent = Math.min(100, Math.max(0, Math.round((currentXp / maxXp) * 100)));
+  const rankInfo = getRankProgress(level, currentXp);
+
+  const totalSegments = 24;
+  const rankFilledSegments = Math.round((rankInfo.progressPercent / 100) * totalSegments);
+  const prestigeBonusPercent = Math.round((getPrestigeMultiplier(prestige) - 1) * 100);
+
+  const toggleSound = () => {
+    setMuted(!muted);
+    if (muted) soundFx.playComplete();
+  };
+
+  return (
+    <header className="w-full bg-[var(--matrix-dark-green)] border-b border-[var(--matrix-border)] p-4 sticky top-0 z-30 font-mono transition-colors duration-300">
+      <div className="max-w-4xl mx-auto flex flex-col gap-3">
+        
+        {/* Верхняя панель */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 border border-[var(--matrix-green)] rounded flex items-center justify-center bg-[var(--matrix-green)]/10 glow-border">
+              <Shield className="w-5 h-5 text-[var(--matrix-green)] animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-black tracking-widest glow-text uppercase text-[var(--matrix-green)]">
+                  MATRIX<span className="text-white">_PLANNER</span>
+                </h1>
+
+                {/* Звезда и Звание Престижа */}
+                {prestige > 0 && (
+                  <span 
+                    title={`Престиж ${toRomanNumeral(prestige)} (+${prestigeBonusPercent}% EXP)`}
+                    className="flex items-center gap-1 bg-yellow-500/20 border border-yellow-400 text-yellow-400 px-2 py-0.5 rounded text-[10px] font-bold shadow-[0_0_8px_rgba(234,179,8,0.4)]"
+                  >
+                    <Star className="w-3 h-3 fill-yellow-400" />
+                    <span>PRESTIGE {toRomanNumeral(prestige)}</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-[var(--matrix-green)]/70 tracking-widest font-bold">
+                SYSTEM_VERSION // {currentDate || "02.08.2026"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Кнопка Перепрошивки появление строго на 30 Уровне */}
+            {level >= 30 && (
+              <button
+                onClick={onOpenPrestigeModal}
+                className="flex items-center gap-1 bg-yellow-400 text-black px-2.5 py-1 rounded text-xs font-black animate-pulse shadow-[0_0_12px_rgba(234,179,8,0.8)] hover:bg-yellow-300"
+                title="Активировать протокол перепрошивки Матрицы"
+              >
+                <Zap className="w-3.5 h-3.5 fill-black" /> REBIRTH
+              </button>
+            )}
+
+            <button
+              onClick={onOpenThemeModal}
+              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2.5 py-1 rounded text-xs font-bold text-[var(--matrix-green)]"
+              title="Сменить тему терминала"
+            >
+              <Palette className="w-3.5 h-3.5" /> THEMES
+            </button>
+
+            <div className="flex items-center gap-1.5 bg-[var(--matrix-green)]/10 border border-[var(--matrix-border)] px-3 py-1 rounded">
+              <Flame className="w-4 h-4 text-[var(--matrix-green)] animate-bounce" />
+              <span className="text-xs font-bold text-[var(--matrix-green)]">{streak} DAY STREAK</span>
+            </div>
+
+            <button 
+              onClick={toggleSound}
+              className="p-1.5 border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] rounded bg-[var(--matrix-bg)] transition-colors"
+              title="Переключить звук"
+            >
+              {muted ? <VolumeX className="w-4 h-4 text-red-500" /> : <Volume2 className="w-4 h-4 text-[var(--matrix-green)]" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Шкалы прогресса */}
+        <div className="w-full space-y-1.5 pt-1 border-t border-[var(--matrix-border)]">
+          <div className="flex items-center justify-between text-xs font-bold">
+            <div className="flex items-center gap-2">
+              <span className="bg-[var(--matrix-green)]/10 border border-[var(--matrix-green)] text-[var(--matrix-green)] px-2 py-0.5 rounded text-[10px] tracking-wider">
+                RANK: {rankInfo.currentRank.title}
+              </span>
+              <span className="text-gray-400 text-[11px]">
+                {rankInfo.nextRank ? `➔ ${rankInfo.nextRank.title}` : "(MAX RANK)"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-white font-bold">LVL {level}</span>
+              <div className="w-16 h-2 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] rounded overflow-hidden">
+                <div 
+                  className="h-full bg-[var(--matrix-green)] transition-all duration-300" 
+                  style={{ width: `${xpPercent}%` }}
+                />
+              </div>
+              <span className="text-[var(--matrix-green)]">{currentXp} / {maxXp} XP</span>
+            </div>
+          </div>
+
+          <div className="w-full h-3.5 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-0.5 rounded flex gap-1 glow-border">
+            {Array.from({ length: totalSegments }).map((_, i) => (
+              <div 
+                key={i} 
+                className={`flex-1 h-full rounded-xs transition-all duration-300 ${
+                  i < rankFilledSegments 
+                    ? "bg-[var(--matrix-green)] shadow-[0_0_6px_var(--matrix-green)]" 
+                    : "bg-[var(--matrix-dark-green)] opacity-30"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </header>
+  );
+};
+</file>
+
+<file path="components/matrix/LevelUpModal.tsx">
+"use client";
+
+import { RankInfo } from "@/lib/gamification";
+import { getThemeById } from "@/lib/themes";
+import { ShieldCheck, Trophy, Sparkles } from "lucide-react";
+
+interface LevelUpModalProps {
+  data: {
+    newLevel: number;
+    newRank: RankInfo;
+    unlockedThemeId?: string;
+  } | null;
+  onClose: () => void;
+}
+
+export const LevelUpModal = ({ data, onClose }: LevelUpModalProps) => {
+  if (!data) return null;
+
+  const unlockedTheme = data.unlockedThemeId ? getThemeById(data.unlockedThemeId) : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in font-mono">
+      <div className="bg-[#051A0B] border-2 border-[#00FF66] p-6 rounded-lg max-w-md w-full text-center relative glow-border space-y-4">
+        
+        <div className="w-14 h-14 mx-auto bg-[#00FF66]/20 border border-[#00FF66] rounded-full flex items-center justify-center animate-bounce">
+          <Trophy className="w-8 h-8 text-[#00FF66]" />
+        </div>
+
+        <div>
+          <span className="text-[10px] bg-[#00FF66]/20 border border-[#00FF66] text-[#00FF66] px-2.5 py-0.5 rounded font-bold tracking-widest uppercase">
+            // SYSTEM_OVERRIDE // LEVEL UP!
+          </span>
+          <h2 className="text-2xl font-black text-white glow-text mt-2">
+            ДОСТИГНУТ LVL {data.newLevel}
+          </h2>
+        </div>
+
+        <div className="bg-[#030703] border border-[#004D1F] p-3 rounded text-left space-y-1">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-[#00FF66]" />
+            <span className="text-xs text-gray-400">ПРИСВОЕНО ЗВАНИЕ:</span>
+          </div>
+          <p className="text-base font-bold text-[#00FF66] tracking-wider pl-6">
+            {data.newRank.title}
+          </p>
+          <p className="text-[11px] text-gray-400 pl-6">
+            {data.newRank.description}
+          </p>
+        </div>
+
+        {unlockedTheme && (
+          <div className="bg-amber-500/10 border border-amber-500/40 p-3 rounded flex items-center gap-3 text-left">
+            <Sparkles className="w-6 h-6 text-amber-400 shrink-0" />
+            <div>
+              <p className="text-[10px] text-amber-400 font-bold uppercase tracking-widest">
+                🔓 НОВАЯ ТЕМА РАЗБЛОКИРОВАНА:
+              </p>
+              <p className="text-xs font-bold text-white">
+                {unlockedTheme.name}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={onClose}
+          className="w-full bg-[#00FF66] text-black font-bold py-2.5 rounded text-xs tracking-widest hover:bg-[#00CC52] transition-colors shadow-[0_0_12px_#00FF66]"
+        >
+          [ ПРИНЯТЬ_НАГРАДУ ]
+        </button>
+      </div>
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/MatrixRain.tsx">
+"use client";
+
+import { useEffect, useRef } from "react";
+import { getThemeById } from "@/lib/themes";
+
+interface MatrixRainProps {
+  active: boolean;
+  themeId?: string;
+}
+
+const DEAD_DROP = -9999;
+
+export const MatrixRain = ({ active, themeId = "classic-matrix" }: MatrixRainProps) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const activeRef = useRef(active);
+  const dropsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    activeRef.current = active;
+
+    if (active && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const fontSize = 14;
+      const columns = Math.floor(canvas.width / fontSize);
+
+      dropsRef.current = Array.from({ length: columns }, () => 
+        Math.floor(Math.random() * -120)
+      );
+    }
+  }, [active]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let frameCount = 0;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZMATRIXPLANNER_#$@%&*";
+    const fontSize = 14;
+
+    const draw = () => {
+      frameCount++;
+
+      if (frameCount % 3 === 0) {
+        ctx.fillStyle = "rgba(3, 7, 3, 0.12)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Используем цвет текущей темы!
+        const theme = getThemeById(themeId);
+        ctx.fillStyle = theme.primaryHex;
+        ctx.font = `${fontSize}px monospace`;
+
+        const drops = dropsRef.current;
+        let liveDrops = 0;
+
+        for (let i = 0; i < drops.length; i++) {
+          if (drops[i] === DEAD_DROP) continue;
+
+          drops[i]++;
+
+          if (drops[i] >= 0) {
+            const text = chars[Math.floor(Math.random() * chars.length)];
+            const x = i * fontSize;
+            const y = drops[i] * fontSize;
+            ctx.fillText(text, x, y);
+          }
+
+          if (drops[i] * fontSize > canvas.height) {
+            if (activeRef.current) {
+              drops[i] = Math.floor(Math.random() * -40);
+              liveDrops++;
+            } else {
+              drops[i] = DEAD_DROP;
+            }
+          } else {
+            liveDrops++;
+          }
+        }
+
+        if (!activeRef.current && liveDrops === 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [themeId]);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="fixed inset-0 pointer-events-none z-0 opacity-20"
+    />
+  );
+};
+</file>
+
+<file path="components/matrix/PrestigeModal.tsx">
+"use client";
+
+import { Zap, Sparkles, RefreshCw } from "lucide-react";
+import { toRomanNumeral, getPrestigeMultiplier } from "@/lib/gamification";
+
+interface PrestigeModalProps {
+  isOpen: boolean;
+  prestige: number;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+export const PrestigeModal = ({ isOpen, prestige, onConfirm, onClose }: PrestigeModalProps) => {
+  if (!isOpen) return null;
+
+  const nextPrestige = prestige + 1;
+  const nextMultiplierPercent = Math.round((getPrestigeMultiplier(nextPrestige) - 1) * 100);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in font-mono">
+      <div className="bg-[var(--matrix-dark-green)] border-2 border-yellow-400 p-6 rounded-lg max-w-md w-full text-center relative glow-border space-y-4 shadow-[0_0_20px_rgba(234,179,8,0.4)]">
+        
+        <div className="w-14 h-14 mx-auto bg-yellow-500/20 border border-yellow-400 rounded-full flex items-center justify-center animate-pulse">
+          <Zap className="w-8 h-8 text-yellow-400" />
+        </div>
+
+        <div>
+          <span className="text-[10px] bg-yellow-500/20 border border-yellow-400 text-yellow-400 px-2.5 py-0.5 rounded font-bold tracking-widest uppercase">
+            // PROTOCOL: SYSTEM REBIRTH
+          </span>
+          <h2 className="text-xl font-black text-white glow-text mt-2">
+            ПЕРЕПРОШИВКА МАТРИЦЫ
+          </h2>
+        </div>
+
+        <p className="text-xs text-gray-300 leading-relaxed">
+          Вы достигли пикового уровня и высшего звания <strong className="text-yellow-400">THE ONE / NEO</strong>. Готовы войти в новый цикл развития?
+        </p>
+
+        <div className="bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-3 rounded text-left space-y-2 text-xs">
+          <div className="flex items-center justify-between text-yellow-400 font-bold border-b border-[var(--matrix-border)] pb-1.5">
+            <span>ЗВАНИЕ ПРЕСТИЖА:</span>
+            <span className="text-sm">★ PRESTIGE {toRomanNumeral(nextPrestige)}</span>
+          </div>
+          
+          <div className="space-y-1 text-gray-300 text-[11px]">
+            <p className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+              <span>Пассивный буст опыта: <strong className="text-yellow-400">+{nextMultiplierPercent}% EXP</strong></span>
+            </p>
+            <p className="flex items-center gap-1.5">
+              <RefreshCw className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+              <span>Уровень сбросится на <strong className="text-white">LVL 1</strong></span>
+            </p>
+            <p className="flex items-center gap-1.5 text-emerald-400">
+              ✓ Все задачи, привычки, квесты и темы сохраняются!
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="flex-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] text-gray-300 py-2.5 rounded text-xs hover:border-yellow-400 transition-colors"
+          >
+            ОТМЕНА
+          </button>
+          
+          <button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className="flex-1 bg-yellow-400 text-black font-bold py-2.5 rounded text-xs tracking-wider hover:bg-yellow-300 transition-colors shadow-[0_0_12px_rgba(234,179,8,0.8)]"
+          >
+            [ ⚡ REBIRTH ]
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/ProgressBar.tsx">
+"use client";
+
+interface ProgressBarProps {
+  value: number; // 0 to 100
+  label?: string;
+  sublabel?: string;
+  showPercent?: boolean;
+}
+
+export const ProgressBar = ({ value, label, sublabel, showPercent = true }: ProgressBarProps) => {
+  const clampedValue = Math.min(100, Math.max(0, value));
+  
+  // Генерация ASCII псевдографики [██████░░░░]
+  const totalBlocks = 20;
+  const filledBlocks = Math.round((clampedValue / 100) * totalBlocks);
+  const emptyBlocks = totalBlocks - filledBlocks;
+  
+  const asciiBar = "█".repeat(filledBlocks) + "░".repeat(emptyBlocks);
+
+  return (
+    <div className="w-full font-mono my-2">
+      {(label || sublabel) && (
+        <div className="flex justify-between text-xs mb-1 opacity-90">
+          <span className="font-bold tracking-wider">{label}</span>
+          <span className="text-[#00B347]">{sublabel}</span>
+        </div>
+      )}
+      
+      <div className="relative bg-[#051A0B] border border-[#004D1F] rounded p-1.5 glow-border">
+        {/* Графический Progress Bar */}
+        <div 
+          className="h-3 bg-[#00FF66] rounded-sm transition-all duration-500 ease-out shadow-[0_0_12px_#00FF66]"
+          style={{ width: `${clampedValue}%` }}
+        />
+        
+        {/* Текстовый ASCII прогресс бар внизу */}
+        <div className="flex justify-between text-[10px] mt-1 text-[#00B347] tracking-widest select-none">
+          <span>[{asciiBar}]</span>
+          {showPercent && <span className="font-bold text-[#00FF66]">{clampedValue}%</span>}
+        </div>
+      </div>
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/QuestTracker.tsx">
+"use client";
+
+import { useState } from "react";
+import { Trophy, ChevronDown, ChevronUp, Trash2, Calendar as CalendarIcon, Check, CalendarRange } from "lucide-react";
+import { soundFx } from "@/lib/sound";
+import { formatDateRu, getTodayStr } from "@/lib/utils";
+import { CyberDatePicker } from "./CyberDatePicker";
+
+export interface Subtask {
+  id: string;
+  title: string;
+  dueDate?: string;
+  xpReward?: number;
+  completed: boolean;
+}
+
+export interface Quest {
+  id: string;
+  title: string;
+  targetUnit: string;
+  scheduleDays?: number[];
+  subtasks: Subtask[];
+  xpReward: number; // Награда за весь квест
+  subtaskXpReward: number; // Фиксированная награда за этап
+}
+
+interface QuestTrackerProps {
+  quests: Quest[];
+  onToggleSubtask: (questId: string, subtaskId: string) => void;
+  onAddSubtask: (questId: string, title: string, dueDate?: string) => void;
+  onDeleteQuest: (questId: string) => void;
+}
+
+const DAYS_NAMES = ["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
+
+export const QuestTracker = ({ quests, onToggleSubtask, onAddSubtask, onDeleteQuest }: QuestTrackerProps) => {
+  const [expandedId, setExpandedId] = useState<string | null>(quests[0]?.id || null);
+  
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [enableSubtaskDate, setEnableSubtaskDate] = useState(false);
+  const [newSubtaskDate, setNewSubtaskDate] = useState(getTodayStr());
+
+  return (
+    <div className="space-y-4 font-mono">
+      {quests.map((quest) => {
+        const completedCount = quest.subtasks.filter(s => s.completed).length;
+        const totalCount = quest.subtasks.length;
+        const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+        const isCompleted = totalCount > 0 && completedCount === totalCount;
+        const isExpanded = expandedId === quest.id;
+
+        return (
+          <div 
+            key={quest.id}
+            className={`rounded border transition-all ${
+              isCompleted 
+                ? "bg-[var(--matrix-bg)]/60 border-[var(--matrix-border)] opacity-70" 
+                : "bg-[var(--matrix-dark-green)] border-yellow-500/40 glow-border"
+            }`}
+          >
+            {/* Заголовок квеста */}
+            <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : quest.id)}>
+              <div className="flex items-center gap-3">
+                <button className="text-yellow-400 p-1">
+                  {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </button>
+                <div>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[10px] bg-yellow-500/10 border border-yellow-500/40 text-yellow-400 px-2 py-0.5 rounded font-bold tracking-widest flex items-center gap-1">
+                      <Trophy className="w-3 h-3" /> EPIC QUEST
+                    </span>
+                    <span className="text-xs text-yellow-400 font-bold">
+                      +{quest.xpReward || 300} XP
+                    </span>
+                    <span className="text-[10px] text-yellow-300/70 border border-yellow-500/20 px-1.5 py-0.5 rounded">
+                      ЭТАП: +{quest.subtaskXpReward || 15} XP
+                    </span>
+                    {quest.scheduleDays && quest.scheduleDays.length > 0 && (
+                      <span className="text-[10px] text-yellow-300/70 border border-yellow-500/20 px-1.5 py-0.5 rounded">
+                        ДНИ: {quest.scheduleDays.map(d => DAYS_NAMES[d]).join(", ")}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-sm font-bold text-white">{quest.title}</h3>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-yellow-400 font-bold">
+                  {completedCount}/{totalCount} {quest.targetUnit} ({percent}%)
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteQuest(quest.id);
+                  }}
+                  className="text-red-500/60 hover:text-red-400 p-1.5 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Прогресс-бар */}
+            <div className="px-4 pb-2">
+              <div className="w-full h-2 bg-[var(--matrix-bg)] border border-yellow-500/30 rounded p-0.5">
+                <div 
+                  className="h-full bg-yellow-400 rounded-xs transition-all duration-300 shadow-[0_0_8px_rgba(234,179,8,0.6)]"
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Подзадачи */}
+            {isExpanded && (
+              <div className="p-4 border-t border-yellow-500/20 bg-[var(--matrix-bg)]/80 space-y-3">
+                <h4 className="text-xs text-yellow-400/80 uppercase tracking-widest">// ЭТАПЫ И ПОДЗАДАЧИ КВЕСТА:</h4>
+                
+                <div className="space-y-1.5">
+                  {quest.subtasks.map((sub) => (
+                    <div key={sub.id} className="flex items-center justify-between p-2 rounded bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)]">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            if (!sub.completed) soundFx.playComplete();
+                            onToggleSubtask(quest.id, sub.id);
+                          }}
+                          className={`w-5 h-5 rounded border flex items-center justify-center ${
+                            sub.completed ? "bg-yellow-400 border-yellow-400 text-black" : "border-[var(--matrix-border)]"
+                          }`}
+                        >
+                          {sub.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </button>
+                        <span className={`text-xs ${sub.completed ? "line-through text-gray-500" : "text-white"}`}>
+                          {sub.title}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-yellow-400 font-bold bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded">
+                          +{sub.xpReward || quest.subtaskXpReward || 15} XP
+                        </span>
+                        {sub.dueDate && (
+                          <span className="text-[10px] text-yellow-400/70 flex items-center gap-1 border border-yellow-500/20 px-1.5 py-0.5 rounded">
+                            <CalendarIcon className="w-3 h-3 text-yellow-400" /> {formatDateRu(sub.dueDate)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {quest.subtasks.length === 0 && (
+                    <p className="text-xs text-yellow-500/40 text-center py-2">[НЕТ ЭТАПОВ В КВЕСТЕ]</p>
+                  )}
+                </div>
+
+                {/* Форма добавления нового этапа (XP задается автоматически от настроек квеста!) */}
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newSubtaskTitle.trim()) return;
+                    onAddSubtask(quest.id, newSubtaskTitle, enableSubtaskDate ? newSubtaskDate : undefined);
+                    setNewSubtaskTitle("");
+                    setEnableSubtaskDate(false);
+                  }}
+                  className="space-y-2 mt-3 pt-2 border-t border-[var(--matrix-border)]"
+                >
+                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                    <input
+                      type="text"
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      placeholder="> Добавить этап квеста..."
+                      className="flex-1 w-full sm:w-auto bg-[var(--matrix-bg)] border border-[var(--matrix-border)] focus:border-yellow-400 text-white px-2.5 py-1.5 rounded text-xs outline-none font-mono"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setEnableSubtaskDate(!enableSubtaskDate)}
+                      className={`px-2.5 py-1.5 rounded text-xs border font-bold transition-all shrink-0 flex items-center gap-1 ${
+                        enableSubtaskDate
+                          ? "bg-yellow-500/20 border-yellow-500 text-yellow-400"
+                          : "bg-[var(--matrix-bg)] border-[var(--matrix-border)] text-gray-400 hover:border-yellow-500/50"
+                      }`}
+                    >
+                      <CalendarRange className="w-3.5 h-3.5" />
+                      {enableSubtaskDate ? "[x] ДАТА" : "+ Дата"}
+                    </button>
+
+                    {enableSubtaskDate && (
+                      <CyberDatePicker value={newSubtaskDate} onChange={setNewSubtaskDate} />
+                    )}
+
+                    <button type="submit" className="bg-yellow-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-yellow-400 shrink-0 w-full sm:w-auto">
+                      + ЭТАП
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/TaskCard.tsx">
+"use client";
+
+import { Check, Sparkles, Trash2, Calendar as CalendarIcon } from "lucide-react";
+import { soundFx } from "@/lib/sound";
+import { formatDateRu } from "@/lib/utils";
+
+export interface Task {
+  id: string;
+  title: string;
+  category: "quest" | "habit" | "todo";
+  xpReward: number;
+  completed: boolean;
+  dueDate?: string;
+}
+
+interface TaskCardProps {
+  task: Task;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export const TaskCard = ({ task, onToggle, onDelete }: TaskCardProps) => {
+  const handleToggle = () => {
+    if (!task.completed) {
+      soundFx.playComplete();
+    }
+    onToggle(task.id);
+  };
+
+  return (
+    <div 
+      className={`group relative flex items-center justify-between p-3.5 my-2 border rounded transition-all duration-300 font-mono ${
+        task.completed 
+          ? "bg-[var(--matrix-bg)] opacity-60 border-[var(--matrix-border)]" 
+          : "bg-[var(--matrix-dark-green)] border-[var(--matrix-border)] hover:border-[var(--matrix-green)] glow-border"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        {/* Галочка выполнения */}
+        <button
+          onClick={handleToggle}
+          className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${
+            task.completed
+              ? "bg-[var(--matrix-green)] border-[var(--matrix-green)] text-black"
+              : "border-[var(--matrix-border)] hover:border-[var(--matrix-green)] bg-[var(--matrix-bg)]"
+          }`}
+        >
+          {task.completed && <Check className="w-4 h-4 stroke-[3]" />}
+        </button>
+
+        <div>
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span 
+              style={{
+                backgroundColor: "rgba(var(--matrix-green-rgb), 0.12)",
+                borderColor: "rgba(var(--matrix-green-rgb), 0.3)",
+                color: "var(--matrix-green)",
+              }}
+              className="text-[9px] px-1.5 py-0.5 rounded border tracking-widest font-bold"
+            >
+              PATCH DIRECTIVE
+            </span>
+            <span className="text-[10px] text-[var(--matrix-green)] flex items-center gap-0.5 font-bold">
+              <Sparkles className="w-3 h-3" /> +{task.xpReward} XP
+            </span>
+            {task.dueDate && (
+              <span className="text-[10px] text-[var(--matrix-green)] flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] px-1.5 py-0.5 rounded">
+                <CalendarIcon className="w-3 h-3 text-[var(--matrix-green)]" /> {formatDateRu(task.dueDate)}
+              </span>
+            )}
+          </div>
+          <p className={`text-sm font-medium ${task.completed ? "line-through text-gray-500" : "text-white"}`}>
+            {task.title}
+          </p>
+        </div>
+      </div>
+
+      <button
+        onClick={() => onDelete(task.id)}
+        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-400 p-1 transition-opacity"
+        title="Удалить задачу"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/XpSelector.tsx">
+"use client";
+
+import { XP_OPTIONS, XpDifficulty } from "@/lib/gamification";
+
+interface XpSelectorProps {
+  value: number; // 15, 40, 100, 300
+  onChange: (newXp: number) => void;
+  compact?: boolean;
+}
+
+const XP_CYCLE: number[] = [15, 40, 100, 300];
+
+export const XpSelector = ({ value, onChange, compact = false }: XpSelectorProps) => {
+  const optionKey = (Object.keys(XP_OPTIONS) as XpDifficulty[]).find(
+    (k) => XP_OPTIONS[k].value === value
+  ) || "LOW";
+
+  const currentOption = XP_OPTIONS[optionKey];
+
+  const handleCycle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const currentIndex = XP_CYCLE.indexOf(value);
+    const nextIndex = (currentIndex + 1) % XP_CYCLE.length;
+    onChange(XP_CYCLE[nextIndex]);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCycle}
+      title="Нажмите для смены награды XP (+15, +40, +100, +300)"
+      className={`font-mono border rounded px-2 py-1 text-xs font-bold transition-all flex items-center gap-1 select-none cursor-pointer shrink-0 ${currentOption.badgeColor}`}
+    >
+      <span>+{currentOption.value} XP</span>
+      {!compact && <span className="opacity-70 text-[9px]">({currentOption.label})</span>}
+    </button>
+  );
+};
+</file>
+
+<file path="global.d.ts">
+// Этот файл с декларацией стилей никогда не перезапишется сборщиком Next.js
+declare module "*.css";
+</file>
+
+<file path="hooks/useMatrixData.ts">
+"use client";
+
+import { useState, useEffect } from "react";
+import { Task } from "@/components/matrix/TaskCard";
+import { Habit } from "@/components/matrix/HabitTracker";
+import { Quest } from "@/components/matrix/QuestTracker";
+import { soundFx } from "@/lib/sound";
+import { getTodayStr, calculateStreak } from "@/lib/utils";
+import { getXpNeededForLevel, getRankForLevel, RankInfo, XP_PRESETS, getPrestigeMultiplier, roundSymmetric } from "@/lib/gamification";
+
+const STORAGE_KEY = "matrix_planner_user_data_v3";
+
+export function useMatrixData() {
+  const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<"tasks" | "habits" | "quests" | "calendar">("tasks");
+  const [matrixRain, setMatrixRain] = useState(false);
+
+  const [level, setLevel] = useState(1);
+  const [highestLevel, setHighestLevel] = useState(1); // Максимальный уровень за всё время
+  const [xp, setXp] = useState(0);
+  const [prestige, setPrestige] = useState(0);
+  const [currentTheme, setCurrentTheme] = useState("classic-matrix");
+
+  const [levelUpData, setLevelUpData] = useState<{
+    newLevel: number;
+    newRank: RankInfo;
+    unlockedThemeId?: string;
+  } | null>(null);
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [quests, setQuests] = useState<Quest[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setLevel(parsed.level || 1);
+        setHighestLevel(parsed.highestLevel || parsed.level || 1);
+        setXp(parsed.xp || 0);
+        setPrestige(parsed.prestige || 0);
+        setCurrentTheme(parsed.currentTheme || "classic-matrix");
+        setTasks(parsed.tasks || []);
+        setHabits(parsed.habits || []);
+        setQuests(parsed.quests || []);
+        setMatrixRain(parsed.matrixRain || false);
+      }
+    } catch (e) {
+      console.error("Ошибка загрузки из localStorage:", e);
+    }
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const dataToSave = { 
+        level, 
+        highestLevel,
+        xp, 
+        prestige, 
+        currentTheme, 
+        tasks, 
+        habits, 
+        quests, 
+        matrixRain 
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    } catch (e) {
+      console.error("Ошибка сохранения в localStorage:", e);
+    }
+  }, [level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted]);
+
+  const applyXpDelta = (baseDelta: number) => {
+    if (baseDelta === 0) return;
+
+    // Симметричный расчёт с округлением
+    const multiplier = getPrestigeMultiplier(prestige);
+    const finalDelta = roundSymmetric(baseDelta * multiplier);
+
+    if (finalDelta > 0) {
+      setXp((prevXp) => {
+        let updatedXp = prevXp + finalDelta;
+        let currentLvl = level;
+        let neededXp = getXpNeededForLevel(currentLvl);
+        const oldRank = getRankForLevel(currentLvl);
+
+        let leveledUp = false;
+        while (updatedXp >= neededXp) {
+          updatedXp -= neededXp;
+          currentLvl += 1;
+          neededXp = getXpNeededForLevel(currentLvl);
+          leveledUp = true;
+        }
+
+        if (leveledUp) {
+          setLevel(currentLvl);
+          setHighestLevel((prevMax) => Math.max(prevMax, currentLvl));
+
+          const newRank = getRankForLevel(currentLvl);
+          soundFx.playLevelUp();
+
+          if (newRank.title !== oldRank.title) {
+            setLevelUpData({
+              newLevel: currentLvl,
+              newRank,
+              unlockedThemeId: newRank.unlockedThemeId,
+            });
+          }
+        }
+
+        return updatedXp;
+      });
+    } else {
+      const absDelta = Math.abs(finalDelta);
+      setXp((prevXp) => {
+        let updatedXp = prevXp - absDelta;
+        let currentLvl = level;
+
+        while (updatedXp < 0 && currentLvl > 1) {
+          currentLvl -= 1;
+          const prevNeededXp = getXpNeededForLevel(currentLvl);
+          updatedXp += prevNeededXp;
+        }
+
+        if (currentLvl !== level) {
+          setLevel(currentLvl);
+        }
+
+        return Math.max(0, updatedXp);
+      });
+    }
+  };
+
+  const activatePrestige = () => {
+    if (level < 30) return;
+    setPrestige((prev) => prev + 1);
+    setLevel(1);
+    setXp(0);
+    soundFx.playLevelUp();
+  };
+
+  const toggleTask = (id: string) => {
+    const target = tasks.find((t) => t.id === id);
+    if (!target) return;
+
+    const nextState = !target.completed;
+    const reward = target.xpReward || XP_PRESETS.LOW;
+
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: nextState } : t))
+    );
+
+    applyXpDelta(nextState ? reward : -reward);
+  };
+
+  const deleteTask = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id));
+
+  const toggleHabitDate = (id: string, dateStr: string) => {
+    const habit = habits.find((h) => h.id === id);
+    if (!habit) return;
+
+    const nextState = !habit.history[dateStr];
+    const reward = habit.xpReward || XP_PRESETS.LOW;
+
+    setHabits((prev) =>
+      prev.map((h) => {
+        if (h.id === id) {
+          return { ...h, history: { ...h.history, [dateStr]: nextState } };
+        }
+        return h;
+      })
+    );
+
+    applyXpDelta(nextState ? reward : -reward);
+  };
+
+  const deleteHabit = (id: string) => setHabits((prev) => prev.filter((h) => h.id !== id));
+
+  const toggleSubtask = (questId: string, subtaskId: string) => {
+    const quest = quests.find((q) => q.id === questId);
+    if (!quest) return;
+
+    const subtask = quest.subtasks.find((s) => s.id === subtaskId);
+    if (!subtask) return;
+
+    const nextState = !subtask.completed;
+    const subtaskReward = subtask.xpReward || quest.subtaskXpReward || XP_PRESETS.LOW;
+
+    const wasQuestCompleted = quest.subtasks.every((s) => s.completed) && quest.subtasks.length > 0;
+
+    const updatedSubtasks = quest.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, completed: nextState } : s
+    );
+
+    const isQuestNowCompleted = updatedSubtasks.every((s) => s.completed) && updatedSubtasks.length > 0;
+
+    setQuests((prev) =>
+      prev.map((q) => (q.id === questId ? { ...q, subtasks: updatedSubtasks } : q))
+    );
+
+    let xpDelta = nextState ? subtaskReward : -subtaskReward;
+
+    if (!wasQuestCompleted && isQuestNowCompleted) {
+      xpDelta += (quest.xpReward || XP_PRESETS.EPIC);
+    } else if (wasQuestCompleted && !isQuestNowCompleted) {
+      xpDelta -= (quest.xpReward || XP_PRESETS.EPIC);
+    }
+
+    applyXpDelta(xpDelta);
+  };
+
+  const addSubtaskToQuest = (questId: string, title: string, dueDate?: string) => {
+    setQuests((prev) =>
+      prev.map((q) => {
+        if (q.id === questId) {
+          return {
+            ...q,
+            subtasks: [
+              ...q.subtasks,
+              { 
+                id: Date.now().toString(), 
+                title, 
+                dueDate, 
+                xpReward: q.subtaskXpReward || XP_PRESETS.LOW, 
+                completed: false 
+              },
+            ],
+          };
+        }
+        return q;
+      })
+    );
+  };
+
+  const deleteQuest = (id: string) => setQuests((prev) => prev.filter((q) => q.id !== id));
+
+  const exportData = () => {
+    const dataStr = JSON.stringify({ level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests }, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `matrix_planner_backup_${getTodayStr()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result as string);
+        if (parsed.tasks && parsed.habits && parsed.quests) {
+          setLevel(parsed.level || 1);
+          setHighestLevel(parsed.highestLevel || parsed.level || 1);
+          setXp(parsed.xp || 0);
+          setPrestige(parsed.prestige || 0);
+          setCurrentTheme(parsed.currentTheme || "classic-matrix");
+          setTasks(parsed.tasks);
+          setHabits(parsed.habits);
+          setQuests(parsed.quests);
+          soundFx.playLevelUp();
+          alert("БЭКАП МАТРИЦЫ УСПЕШНО ЗАГРУЖЕН!");
+        } else {
+          alert("ОШИБКА: Неверный формат файла бэкапа!");
+        }
+      } catch (err) {
+        alert("ОШИБКА чтения файла бэкапа!");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const totalStreak = habits.length > 0 ? Math.max(...habits.map((h) => calculateStreak(h.history))) : 0;
+
+  return {
+    mounted,
+    activeTab,
+    setActiveTab,
+    matrixRain,
+    setMatrixRain,
+    level,
+    highestLevel,
+    xp,
+    prestige,
+    currentTheme,
+    setCurrentTheme,
+    levelUpData,
+    setLevelUpData,
+    activatePrestige,
+    totalStreak,
+    tasks,
+    setTasks,
+    habits,
+    setHabits,
+    quests,
+    setQuests,
+    toggleTask,
+    deleteTask,
+    toggleHabitDate,
+    deleteHabit,
+    toggleSubtask,
+    addSubtaskToQuest,
+    deleteQuest,
+    exportData,
+    importData,
+  };
+}
+</file>
+
+<file path="lib/gamification.ts">
+// lib/gamification.ts
+
+export const XP_PRESETS = {
+  LOW: 15,     // 🟢 EASY / LOW (Дефолт)
+  MEDIUM: 40,  // 🟡 MEDIUM
+  HARD: 100,   // 🔴 HARD
+  EPIC: 300,   // 🏆 EPIC
+} as const;
+
+export type XpDifficulty = keyof typeof XP_PRESETS;
+
+export interface XpOption {
+  label: string;
+  value: number;
+  badgeColor: string;
+  textColor: string;
+  borderColor: string;
+}
+
+export const XP_OPTIONS: Record<XpDifficulty, XpOption> = {
+  LOW: {
+    label: "EASY",
+    value: 15,
+    badgeColor: "bg-emerald-500/10 border-emerald-500/40 text-emerald-400",
+    textColor: "text-emerald-400",
+    borderColor: "border-emerald-500",
+  },
+  MEDIUM: {
+    label: "MEDIUM",
+    value: 40,
+    badgeColor: "bg-yellow-500/10 border-yellow-500/40 text-yellow-400",
+    textColor: "text-yellow-400",
+    borderColor: "border-yellow-500",
+  },
+  HARD: {
+    label: "HARD",
+    value: 100,
+    badgeColor: "bg-rose-500/10 border-rose-500/40 text-rose-400",
+    textColor: "text-rose-400",
+    borderColor: "border-rose-500",
+  },
+  EPIC: {
+    label: "EPIC",
+    value: 300,
+    badgeColor: "bg-amber-400/20 border-amber-400/60 text-amber-300 font-bold",
+    textColor: "text-amber-300",
+    borderColor: "border-amber-400",
+  },
+};
+
+export interface RankInfo {
+  title: string;
+  minLevel: number;
+  maxLevel: number;
+  unlockedThemeId?: string;
+  description: string;
+}
+
+export const OPERATIVE_RANKS: RankInfo[] = [
+  {
+    title: "NEOPHYTE",
+    minLevel: 1,
+    maxLevel: 4,
+    unlockedThemeId: "classic-matrix",
+    description: "Вне системы. Только подключился к терминалу.",
+  },
+  {
+    title: "OPERATIVE",
+    minLevel: 5,
+    maxLevel: 9,
+    unlockedThemeId: "cyberpunk-2077",
+    description: "Уверенно взламывает ежедневную рутину.",
+  },
+  {
+    title: "CYPHER PUNK",
+    minLevel: 10,
+    maxLevel: 14,
+    unlockedThemeId: "synthwave-sunset",
+    description: "Мастер виртуальной дисциплины.",
+  },
+  {
+    title: "NET RUNNER",
+    minLevel: 15,
+    maxLevel: 19,
+    unlockedThemeId: "rogue-ai",
+    description: "Сетевой призрак. Легенда цифрового мира.",
+  },
+  {
+    title: "SYSTEM ARCHITECT",
+    minLevel: 20,
+    maxLevel: 29,
+    unlockedThemeId: "quantum-ice",
+    description: "Полностью контролирует хаос своей жизни.",
+  },
+  {
+    title: "THE ONE / NEO",
+    minLevel: 30,
+    maxLevel: Infinity,
+    unlockedThemeId: "monarch-gold",
+    description: "Избранный. Подчинил себе законы Матрицы.",
+  },
+];
+
+export function getRankForLevel(level: number): RankInfo {
+  return (
+    OPERATIVE_RANKS.find((r) => level >= r.minLevel && level <= r.maxLevel) ||
+    OPERATIVE_RANKS[OPERATIVE_RANKS.length - 1]
+  );
+}
+
+export function getXpNeededForLevel(level: number): number {
+  const calculated = 100 + (level - 1) * 25;
+  return Math.min(300, calculated);
+}
+
+// Симметричное математическое округление для защиты от дюпов
+export function roundSymmetric(value: number): number {
+  return Math.sign(value) * Math.round(Math.abs(value));
+}
+
+export function toRomanNumeral(num: number): string {
+  const lookup: Record<string, number> = {
+    M: 1000, CM: 900, D: 500, CD: 400,
+    C: 100, XC: 90, L: 50, XL: 40,
+    X: 10, IX: 9, V: 5, IV: 4, I: 1
+  };
+  let roman = "";
+  for (const i in lookup) {
+    while (num >= lookup[i]) {
+      roman += i;
+      num -= lookup[i];
+    }
+  }
+  return roman || "I";
+}
+
+export function getPrestigeMultiplier(prestige: number): number {
+  return 1 + prestige * 0.10;
+}
+
+export function getRankProgress(level: number, currentXp: number) {
+  const currentRank = getRankForLevel(level);
+
+  if (currentRank.maxLevel === Infinity) {
+    return {
+      currentRank,
+      nextRank: null,
+      progressPercent: 100,
+      levelsRemaining: 0,
+    };
+  }
+
+  const nextRankIndex = OPERATIVE_RANKS.findIndex((r) => r.title === currentRank.title) + 1;
+  const nextRank = OPERATIVE_RANKS[nextRankIndex] || null;
+
+  const totalLevelsInRank = currentRank.maxLevel - currentRank.minLevel + 1;
+  const completedLevelsInRank = level - currentRank.minLevel;
+
+  const xpForThisLevel = getXpNeededForLevel(level);
+  const levelFraction = currentXp / xpForThisLevel;
+
+  const progressPercent = Math.min(
+    100,
+    Math.round(((completedLevelsInRank + levelFraction) / totalLevelsInRank) * 100)
+  );
+
+  return {
+    currentRank,
+    nextRank,
+    progressPercent,
+    levelsRemaining: currentRank.maxLevel - level + 1,
+  };
+}
+</file>
+
+<file path="lib/sound.ts">
+// lib/sound.ts
+class SoundSystem {
+  private ctx: AudioContext | null = null;
+
+  private init() {
+    if (!this.ctx && typeof window !== 'undefined') {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+  }
+
+  // Звук клика по галочке / задаче
+  playComplete() {
+    this.init();
+    if (!this.ctx) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(440, this.ctx.currentTime); // A4
+    osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.15); // A5
+
+    gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.15);
+  }
+
+  // Звук повышения уровня / ачивки
+  playLevelUp() {
+    this.init();
+    if (!this.ctx) return;
+
+    const notes = [261.63, 329.63, 392.00, 523.25]; // C E G C
+    notes.forEach((freq, index) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime + index * 0.08);
+
+      gain.gain.setValueAtTime(0.12, this.ctx.currentTime + index * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + index * 0.08 + 0.2);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(this.ctx.currentTime + index * 0.08);
+      osc.stop(this.ctx.currentTime + index * 0.08 + 0.2);
+    });
+  }
+}
+
+export const soundFx = new SoundSystem();
+</file>
+
+<file path="lib/themes.ts">
+// lib/themes.ts
+
+export interface Theme {
+  id: string;
+  name: string;
+  levelRequired: number;
+  rankRequired: string;
+  primaryHex: string;
+  cssVars: {
+    bg: string;
+    primary: string;
+    darkPrimary: string;
+    border: string;
+    glow: string;
+    primaryRgb: string;
+    borderRgb: string;
+  };
+}
+
+export const THEMES: Theme[] = [
+  {
+    id: "classic-matrix",
+    name: "CLASSIC MATRIX",
+    levelRequired: 1,
+    rankRequired: "NEOPHYTE",
+    primaryHex: "#00FF66",
+    cssVars: {
+      bg: "#030703",
+      primary: "#00FF66",
+      darkPrimary: "#051A0B",
+      border: "#004D1F",
+      glow: "rgba(0, 255, 102, 0.4)",
+      primaryRgb: "0, 255, 102",
+      borderRgb: "0, 77, 31",
+    },
+  },
+  {
+    id: "cyberpunk-2077",
+    name: "CYBERPUNK 2077",
+    levelRequired: 5,
+    rankRequired: "OPERATIVE",
+    primaryHex: "#FFB800",
+    cssVars: {
+      bg: "#0A0800",
+      primary: "#FFB800",
+      darkPrimary: "#261C00",
+      border: "#805C00",
+      glow: "rgba(255, 184, 0, 0.4)",
+      primaryRgb: "255, 184, 0",
+      borderRgb: "128, 92, 0",
+    },
+  },
+  {
+    id: "synthwave-sunset",
+    name: "SYNTHWAVE",
+    levelRequired: 10,
+    rankRequired: "CYPHER PUNK",
+    primaryHex: "#FF007F",
+    cssVars: {
+      bg: "#0A0005",
+      primary: "#FF007F",
+      darkPrimary: "#260014",
+      border: "#800040",
+      glow: "rgba(255, 0, 127, 0.4)",
+      primaryRgb: "255, 0, 127",
+      borderRgb: "128, 0, 64",
+    },
+  },
+  {
+    id: "rogue-ai",
+    name: "ROGUE AI",
+    levelRequired: 15,
+    rankRequired: "NET RUNNER",
+    primaryHex: "#FF3333",
+    cssVars: {
+      bg: "#0A0000",
+      primary: "#FF3333",
+      darkPrimary: "#260808",
+      border: "#801A1A",
+      glow: "rgba(255, 51, 51, 0.4)",
+      primaryRgb: "255, 51, 51",
+      borderRgb: "128, 26, 26",
+    },
+  },
+  {
+    id: "quantum-ice",
+    name: "QUANTUM ICE",
+    levelRequired: 20,
+    rankRequired: "SYSTEM ARCHITECT",
+    primaryHex: "#00F0FF",
+    cssVars: {
+      bg: "#000A0D",
+      primary: "#00F0FF",
+      darkPrimary: "#00222B",
+      border: "#007788",
+      glow: "rgba(0, 240, 255, 0.4)",
+      primaryRgb: "0, 240, 255",
+      borderRgb: "0, 119, 136",
+    },
+  },
+  {
+    id: "monarch-gold",
+    name: "MONARCH GOLD",
+    levelRequired: 30,
+    rankRequired: "THE ONE / NEO",
+    primaryHex: "#FFD700",
+    cssVars: {
+      bg: "#0A0900",
+      primary: "#FFD700",
+      darkPrimary: "#262200",
+      border: "#807100",
+      glow: "rgba(255, 215, 0, 0.4)",
+      primaryRgb: "255, 215, 0",
+      borderRgb: "128, 113, 0",
+    },
+  },
+];
+
+export function getThemeById(id: string): Theme {
+  return THEMES.find((t) => t.id === id) || THEMES[0];
+}
+</file>
+
+<file path="lib/utils.ts">
+// Вспомогательные функции для работы с датами в формате YYYY-MM-DD
+export function getTodayStr(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function formatDateRu(dateStr: string): string {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  const months = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+  return `${day} ${months[parseInt(month, 10) - 1]} ${year}`;
+}
+
+// Расчет реальной непрерывной серии дней (Стрика)
+export function calculateStreak(history: Record<string, boolean>): number {
+  let streak = 0;
+  const today = new Date();
+  
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    
+    if (history[dateStr]) {
+      streak++;
+    } else if (i > 0) {
+      // Если сегодня еще не отмечено — не сбрасываем стрик сразу, даем день
+      break;
+    }
+  }
+  return streak;
+}
+</file>
+
+<file path="next-env.d.ts">
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/basic-features/typescript for more information.
+</file>
+
+<file path="package.json">
+{"name":"matrix-bar","version":"0.1.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start"},"dependencies":{"clsx":"^2.1.1","lucide-react":"^0.427.0","next":"14.2.5","react":"^18.3.1","react-dom":"^18.3.1","tailwind-merge":"^2.5.2"},"devDependencies":{"@types/node":"^20","@types/react":"^18","@types/react-dom":"^18","autoprefixer":"^10.4.20","postcss":"^8.4.41","tailwindcss":"^3.4.9","typescript":"^5"}}
+</file>
+
+<file path="postcss.config.js">
+module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } };
+</file>
+
+<file path="public/manifest.json">
+{
+  "name": "Matrix Planner",
+  "short_name": "MatrixPlanner",
+  "description": "Gamified planner and tracker in Matrix style",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030703",
+  "theme_color": "#030703",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
+</file>
+
+<file path="tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        matrix: {
+          bg: "var(--matrix-bg)",
+          green: "var(--matrix-green)",
+          darkGreen: "var(--matrix-dark-green)",
+          border: "var(--matrix-border)",
+          glow: "var(--matrix-glow)",
+        },
+      },
+    },
+  },
+  plugins: [],
+};
+</file>
+
+<file path="tsconfig.json">
+{"compilerOptions":{"target":"ES2022","lib":["dom","dom.iterable","esnext"],"allowJs":true,"skipLibCheck":true,"strict":true,"noEmit":true,"esModuleInterop":true,"module":"esnext","moduleResolution":"bundler","resolveJsonModule":true,"isolatedModules":true,"jsx":"preserve","incremental":true,"plugins":[{"name":"next"}],"paths":{"@/*":["./*"]}},"include":["next-env.d.ts","**/*.ts","**/*.tsx",".next/types/**/*.ts"],"exclude":["node_modules"]}
+</file>
+
+</files>

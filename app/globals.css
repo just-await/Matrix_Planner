@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --matrix-bg: #030703;
+  --matrix-green: #00FF66;
+  --matrix-dark-green: #051A0B;
+  --matrix-border: #004D1F;
+  --matrix-glow: rgba(0, 255, 102, 0.4);
+  --matrix-green-rgb: 0, 255, 102;
+  --matrix-border-rgb: 0, 77, 31;
+}
+
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: var(--matrix-bg);
+  color: var(--matrix-green);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--matrix-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--matrix-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--matrix-green);
+  box-shadow: 0 0 8px var(--matrix-green);
+}
+
+.glow-text {
+  text-shadow: 0 0 8px var(--matrix-glow), 0 0 20px var(--matrix-glow);
+}
+
+.glow-border {
+  box-shadow: 0 0 10px var(--matrix-glow), inset 0 0 8px var(--matrix-glow);
+}
+
+.crt-overlay::before {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
+  background-size: 100% 6px;
+  z-index: 99;
+  pointer-events: none;
+  opacity: 0.3;
+}
