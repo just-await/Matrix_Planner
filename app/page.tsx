@@ -27,7 +27,7 @@ export default function Home() {
     setActiveTab,
     matrixRain,
     setMatrixRain,
-    user, // <-- Добавили
+    user,
     username,
     setUsername,
     level,
@@ -36,6 +36,8 @@ export default function Home() {
     prestige,
     currentTheme,
     setCurrentTheme,
+    expandedQuestIds,
+    toggleQuestExpanded,
     levelUpData,
     setLevelUpData,
     activatePrestige,
@@ -195,7 +197,7 @@ export default function Home() {
 
       <ProfileModal
         isOpen={showProfileModal}
-        user={user} // <-- Добавили
+        user={user}
         username={username}
         level={level}
         rank={currentRank}
@@ -494,6 +496,8 @@ export default function Home() {
             </h2>
             <QuestTracker 
               quests={quests} 
+              expandedQuestIds={expandedQuestIds}
+              onToggleQuestExpanded={toggleQuestExpanded}
               onToggleSubtask={toggleSubtask} 
               onAddSubtask={addSubtaskToQuest} 
               onDeleteQuest={deleteQuest} 

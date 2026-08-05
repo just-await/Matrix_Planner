@@ -17,7 +17,6 @@ export function useMatrixData() {
   const [activeTab, setActiveTab] = useState<"tasks" | "habits" | "quests" | "calendar">("tasks");
   const [matrixRain, setMatrixRain] = useState(false);
 
-  // Пользователь Supabase
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoadedFromCloud, setIsLoadedFromCloud] = useState(false);
 
@@ -29,6 +28,9 @@ export function useMatrixData() {
   const [prestige, setPrestige] = useState(0);
   const [currentTheme, setCurrentTheme] = useState("classic-matrix");
 
+  // Состояние открытых квестов: { [questId]: true/false }
+  const [expandedQuestIds, setExpandedQuestIds] = useState<Record<string, boolean>>({});
+
   const [levelUpData, setLevelUpData] = useState<{
     newLevel: number;
     newRank: RankInfo;
@@ -39,7 +41,6 @@ export function useMatrixData() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
 
-  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И ОЧИСТКА URL
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
@@ -72,7 +73,6 @@ export function useMatrixData() {
     };
   }, []);
 
-  // Очистка символа '#' или '#access_token' из строки браузера
   useEffect(() => {
     if (typeof window !== "undefined" && (window.location.hash || window.location.href.includes("#"))) {
       const timer = setTimeout(() => {
@@ -94,6 +94,7 @@ export function useMatrixData() {
         setXp(parsed.xp || 0);
         setPrestige(parsed.prestige || 0);
         setCurrentTheme(parsed.currentTheme || "classic-matrix");
+        setExpandedQuestIds(parsed.expandedQuestIds || {});
         setTasks(parsed.tasks || []);
         setHabits(parsed.habits || []);
         setQuests(parsed.quests || []);
@@ -150,6 +151,7 @@ export function useMatrixData() {
         xp, 
         prestige, 
         currentTheme, 
+        expandedQuestIds,
         tasks, 
         habits, 
         quests, 
@@ -163,7 +165,7 @@ export function useMatrixData() {
     if (user && isLoadedFromCloud) {
       syncToSupabase(user.id);
     }
-  }, [username, level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted, user, isLoadedFromCloud]);
+  }, [username, level, highestLevel, xp, prestige, currentTheme, expandedQuestIds, tasks, habits, quests, matrixRain, mounted, user, isLoadedFromCloud]);
 
   const syncToSupabase = async (userId: string) => {
     try {
@@ -189,6 +191,14 @@ export function useMatrixData() {
     } catch (e) {
       console.error("Ошибка синхронизации с Supabase:", e);
     }
+  };
+
+  // Переключение развернутости квеста
+  const toggleQuestExpanded = (questId: string) => {
+    setExpandedQuestIds(prev => ({
+      ...prev,
+      [questId]: prev[questId] === undefined ? false : !prev[questId]
+    }));
   };
 
   const applyXpDelta = (baseDelta: number) => {
@@ -409,6 +419,8 @@ export function useMatrixData() {
     prestige,
     currentTheme,
     setCurrentTheme,
+    expandedQuestIds,
+    toggleQuestExpanded,
     levelUpData,
     setLevelUpData,
     activatePrestige,

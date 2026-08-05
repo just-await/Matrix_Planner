@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: "Matrix Planner - Cyberpunk Planner & Tracker",
   description: "Gamified planner and tracker in Matrix style",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Matrix Planner",
+  },
 };
 
 export const viewport: Viewport = {
@@ -27,6 +32,18 @@ export default function RootLayout({
         <Script 
           src="https://telegram.org/js/telegram-web-app.js" 
           strategy="beforeInteractive" 
+        />
+        {/* Автоматическая регистрация PWA Service Worker */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
         />
       </head>
       <body className="bg-[#030703] text-[#00FF66] antialiased">

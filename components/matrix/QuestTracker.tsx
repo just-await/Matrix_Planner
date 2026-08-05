@@ -20,12 +20,14 @@ export interface Quest {
   targetUnit: string;
   scheduleDays?: number[];
   subtasks: Subtask[];
-  xpReward: number; // Награда за весь квест
-  subtaskXpReward: number; // Фиксированная награда за этап
+  xpReward: number;
+  subtaskXpReward: number;
 }
 
 interface QuestTrackerProps {
   quests: Quest[];
+  expandedQuestIds?: Record<string, boolean>;
+  onToggleQuestExpanded?: (questId: string) => void;
   onToggleSubtask: (questId: string, subtaskId: string) => void;
   onAddSubtask: (questId: string, title: string, dueDate?: string) => void;
   onDeleteQuest: (questId: string) => void;
@@ -33,8 +35,15 @@ interface QuestTrackerProps {
 
 const DAYS_NAMES = ["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
 
-export const QuestTracker = ({ quests, onToggleSubtask, onAddSubtask, onDeleteQuest }: QuestTrackerProps) => {
-  const [expandedId, setExpandedId] = useState<string | null>(quests[0]?.id || null);
+export const QuestTracker = ({ 
+  quests, 
+  expandedQuestIds = {}, 
+  onToggleQuestExpanded, 
+  onToggleSubtask, 
+  onAddSubtask, 
+  onDeleteQuest 
+}: QuestTrackerProps) => {
+  const [localExpandedId, setLocalExpandedId] = useState<string | null>(quests[0]?.id || null);
   
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [enableSubtaskDate, setEnableSubtaskDate] = useState(false);
@@ -42,12 +51,24 @@ export const QuestTracker = ({ quests, onToggleSubtask, onAddSubtask, onDeleteQu
 
   return (
     <div className="space-y-4 font-mono">
-      {quests.map((quest) => {
+      {quests.map((quest, index) => {
         const completedCount = quest.subtasks.filter(s => s.completed).length;
         const totalCount = quest.subtasks.length;
         const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
         const isCompleted = totalCount > 0 && completedCount === totalCount;
-        const isExpanded = expandedId === quest.id;
+        
+        // По умолчанию первый квест открыт, если пользователь не переключал вручную
+        const isExpanded = onToggleQuestExpanded 
+          ? (expandedQuestIds[quest.id] !== undefined ? expandedQuestIds[quest.id] : index === 0)
+          : localExpandedId === quest.id;
+
+        const handleToggle = () => {
+          if (onToggleQuestExpanded) {
+            onToggleQuestExpanded(quest.id);
+          } else {
+            setLocalExpandedId(isExpanded ? null : quest.id);
+          }
+        };
 
         return (
           <div 
@@ -59,7 +80,7 @@ export const QuestTracker = ({ quests, onToggleSubtask, onAddSubtask, onDeleteQu
             }`}
           >
             {/* Заголовок квеста */}
-            <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : quest.id)}>
+            <div className="p-4 flex items-center justify-between cursor-pointer" onClick={handleToggle}>
               <div className="flex items-center gap-3">
                 <button className="text-yellow-400 p-1">
                   {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
@@ -153,7 +174,6 @@ export const QuestTracker = ({ quests, onToggleSubtask, onAddSubtask, onDeleteQu
                   )}
                 </div>
 
-                {/* Форма добавления нового этапа (XP задается автоматически от настроек квеста!) */}
                 <form 
                   onSubmit={(e) => {
                     e.preventDefault();
