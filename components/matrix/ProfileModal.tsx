@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User as UserIcon, ShieldCheck, Flame, Star, Zap, Save, Check, LogOut, Mail, Lock, Sparkles, AlertTriangle } from "lucide-react";
 import { RankInfo, toRomanNumeral, getPrestigeMultiplier } from "@/lib/gamification";
 import { supabase } from "@/lib/supabase";
@@ -41,6 +41,13 @@ export const ProfileModal = ({
   const [successMsg, setSuccessMsg] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Синхронизируем инпут при каждом открытии или изменении позывного
+  useEffect(() => {
+    if (isOpen) {
+      setInputName(username);
+    }
+  }, [isOpen, username]);
 
   if (!isOpen) return null;
 
@@ -162,6 +169,7 @@ export const ProfileModal = ({
 
         {user ? (
           <div className="space-y-4">
+            {/* Смена позывного */}
             <form onSubmit={handleSaveName} className="space-y-2">
               <label className="text-[10px] text-[var(--matrix-green)] uppercase font-bold tracking-wider block">
                 // CALLSIGN / ПОЗЫВНОЙ ОПЕРАТИВНИКА:

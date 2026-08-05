@@ -19,8 +19,6 @@ export function useMatrixData() {
 
   // Пользователь Supabase
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  
-  // Флаг безопасности: запрещает автосохранение до окончания скачивания из облака
   const [isLoadedFromCloud, setIsLoadedFromCloud] = useState(false);
 
   // Профиль оперативника
@@ -41,7 +39,7 @@ export function useMatrixData() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
 
-  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И БЕЗОПАСНАЯ ЗАГРУЗКА
+  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И ОЧИСТКА URL
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
@@ -59,14 +57,8 @@ export function useMatrixData() {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        setIsLoadedFromCloud(false); // Запрещаем автосохранение при входе!
+        setIsLoadedFromCloud(false);
         loadFromSupabase(currentUser.id);
-
-        if (typeof window !== "undefined" && window.location.hash) {
-          setTimeout(() => {
-            window.history.replaceState(null, "", window.location.pathname + window.location.search);
-          }, 300);
-        }
       } else {
         loadFromLocalStorage();
         setIsLoadedFromCloud(true);
@@ -79,6 +71,17 @@ export function useMatrixData() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Очистка символа '#' или '#access_token' из строки браузера
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window.location.hash || window.location.href.includes("#"))) {
+      const timer = setTimeout(() => {
+        const cleanUrl = window.location.origin + window.location.pathname + window.location.search;
+        window.history.replaceState(null, "", cleanUrl);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
 
   const loadFromLocalStorage = () => {
     try {
@@ -101,10 +104,8 @@ export function useMatrixData() {
     }
   };
 
-  // СКАЧИВАНИЕ ИЗ SUPABASE БЕЗ РИСКА ПЕРЕЗАПИСИ
   const loadFromSupabase = async (userId: string) => {
     try {
-      // 1. Загрузка профиля
       const { data: profile } = await supabase
         .from("profiles")
         .select("username")
@@ -115,7 +116,6 @@ export function useMatrixData() {
         setUsername(profile.username);
       }
 
-      // 2. Загрузка планера
       const { data: plannerData } = await supabase
         .from("planner_data")
         .select("*")
@@ -135,12 +135,10 @@ export function useMatrixData() {
     } catch (e) {
       console.error("Ошибка скачивания из Supabase:", e);
     } finally {
-      // ТОЛЬКО ПОСЛЕ ЗАВЕРШЕНИЯ СКАЧИВАНИЯ снимаем замок автосохранения!
       setIsLoadedFromCloud(true);
     }
   };
 
-  // 3. БЕЗОПАСНОЕ АВТОСОХРАНЕНИЕ
   useEffect(() => {
     if (!mounted) return;
 
@@ -162,7 +160,6 @@ export function useMatrixData() {
       console.error("Ошибка сохранения в localStorage:", e);
     }
 
-    // Сохраняем в облако ТОЛЬКО ЕСЛИ данные уже полностью скачаны!
     if (user && isLoadedFromCloud) {
       syncToSupabase(user.id);
     }
