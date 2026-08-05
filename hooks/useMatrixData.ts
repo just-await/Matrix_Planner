@@ -38,24 +38,29 @@ export function useMatrixData() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
 
-  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ SUPABASE
+  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И ОЧИСТКА ХЭША В URL
   useEffect(() => {
-    // Получаем текущую сессию
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadFromSupabase(session.user.id);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        loadFromSupabase(currentUser.id);
       } else {
         loadFromLocalStorage();
       }
     });
 
-    // Слушаем изменения авторизации (Вход / Выход)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
         loadFromSupabase(currentUser.id);
+        // Очищаем решетку '#' из URL после редиректа OAuth
+        if (typeof window !== "undefined" && window.location.hash) {
+          setTimeout(() => {
+            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+          }, 300);
+        }
       } else {
         loadFromLocalStorage();
       }
@@ -68,7 +73,6 @@ export function useMatrixData() {
     };
   }, []);
 
-  // ЗАГРУЗКА ИЗ LOCAL STORAGE
   const loadFromLocalStorage = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -90,10 +94,8 @@ export function useMatrixData() {
     }
   };
 
-  // ЗАГРУЗКА ИЗ SUPABASE
   const loadFromSupabase = async (userId: string) => {
     try {
-      // 1. Загрузка профиля
       const { data: profile } = await supabase
         .from("profiles")
         .select("username")
@@ -104,7 +106,6 @@ export function useMatrixData() {
         setUsername(profile.username);
       }
 
-      // 2. Загрузка данных планера
       const { data: plannerData } = await supabase
         .from("planner_data")
         .select("*")
@@ -126,11 +127,9 @@ export function useMatrixData() {
     }
   };
 
-  // АВТОСОХРАНЕНИЕ (LOCAL STORAGE + SUPABASE)
   useEffect(() => {
     if (!mounted) return;
 
-    // Сохранение в Local Storage
     try {
       const dataToSave = { 
         username,
@@ -149,22 +148,18 @@ export function useMatrixData() {
       console.error("Ошибка сохранения в localStorage:", e);
     }
 
-    // Сохранение в Supabase (если авторизован)
     if (user) {
       syncToSupabase(user.id);
     }
   }, [username, level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted, user]);
 
-  // ОТПРАВКА В SUPABASE
   const syncToSupabase = async (userId: string) => {
     try {
-      // Обновляем профиль
       await supabase
         .from("profiles")
         .update({ username, updated_at: new Date().toISOString() })
         .eq("id", userId);
 
-      // Обновляем планер
       await supabase
         .from("planner_data")
         .upsert({
