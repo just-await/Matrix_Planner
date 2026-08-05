@@ -11,9 +11,11 @@ import { MatrixRain } from "@/components/matrix/MatrixRain";
 import { XpSelector } from "@/components/matrix/XpSelector";
 import { LevelUpModal } from "@/components/matrix/LevelUpModal";
 import { PrestigeModal } from "@/components/matrix/PrestigeModal";
+import { ProfileModal } from "@/components/matrix/ProfileModal";
 import { useMatrixData } from "@/hooks/useMatrixData";
 import { getTodayStr, formatDateRu } from "@/lib/utils";
 import { THEMES, getThemeById } from "@/lib/themes";
+import { getRankForLevel } from "@/lib/gamification";
 import { Plus, CheckSquare, Repeat, Calendar, Trophy, CalendarRange, Download, Upload, CloudRain, Palette } from "lucide-react";
 
 export default function Home() {
@@ -25,6 +27,9 @@ export default function Home() {
     setActiveTab,
     matrixRain,
     setMatrixRain,
+    user, // <-- Добавили
+    username,
+    setUsername,
     level,
     highestLevel,
     xp,
@@ -54,6 +59,7 @@ export default function Home() {
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -161,15 +167,19 @@ export default function Home() {
     setInputTitle("");
   };
 
+  const currentRank = getRankForLevel(level);
+
   return (
     <div className="min-h-screen bg-[var(--matrix-bg)] text-[var(--matrix-green)] crt-overlay pb-12 font-mono relative transition-colors duration-300">
       <MatrixRain active={matrixRain} themeId={currentTheme} />
 
       <Header 
+        username={username}
         level={level} 
         currentXp={xp} 
         streak={totalStreak} 
         prestige={prestige}
+        onOpenProfileModal={() => setShowProfileModal(true)}
         onOpenThemeModal={() => setShowThemeModal(true)}
         onOpenPrestigeModal={() => setShowPrestigeModal(true)}
       />
@@ -183,6 +193,18 @@ export default function Home() {
         onClose={() => setShowPrestigeModal(false)} 
       />
 
+      <ProfileModal
+        isOpen={showProfileModal}
+        user={user} // <-- Добавили
+        username={username}
+        level={level}
+        rank={currentRank}
+        prestige={prestige}
+        streak={totalStreak}
+        onSaveUsername={setUsername}
+        onClose={() => setShowProfileModal(false)}
+      />
+
       {/* МОДАЛЬНОЕ ОКНО ВЫБОРА ТЕМ */}
       {showThemeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -192,7 +214,6 @@ export default function Home() {
             </h3>
             <div className="space-y-2">
               {THEMES.map((theme) => {
-                // Тема открыта, если разблокирована сейчас, если был престиж, или если уровень достигался ранее
                 const isUnlocked = prestige > 0 || highestLevel >= theme.levelRequired || level >= theme.levelRequired;
                 const isSelected = currentTheme === theme.id;
 
@@ -235,39 +256,37 @@ export default function Home() {
         </div>
       )}
 
-      <main className="max-w-4xl mx-auto px-4 mt-6 relative z-10">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 mt-4 sm:mt-6 relative z-10">
         
         {/* ПАНЕЛЬ ИНСТРУМЕНТОВ */}
         <div className="flex items-center justify-between gap-2 mb-4 bg-[var(--matrix-dark-green)] p-2 rounded border border-[var(--matrix-border)] text-xs">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMatrixRain(!matrixRain)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded border font-bold transition-all ${
-                matrixRain 
-                  ? "bg-[var(--matrix-green)] text-black border-[var(--matrix-green)] shadow-[0_0_8px_var(--matrix-green)]" 
-                  : "bg-[var(--matrix-bg)] border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
-              }`}
-            >
-              <CloudRain className="w-3.5 h-3.5" />
-              RAIN: {matrixRain ? "ON" : "OFF"}
-            </button>
-          </div>
+          <button
+            onClick={() => setMatrixRain(!matrixRain)}
+            className={`flex items-center gap-1 px-2 py-1 rounded border font-bold text-[11px] sm:text-xs transition-all ${
+              matrixRain 
+                ? "bg-[var(--matrix-green)] text-black border-[var(--matrix-green)] shadow-[0_0_8px_var(--matrix-green)]" 
+                : "bg-[var(--matrix-bg)] border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
+            }`}
+          >
+            <CloudRain className="w-3.5 h-3.5" />
+            <span>RAIN: {matrixRain ? "ON" : "OFF"}</span>
+          </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={exportData}
-              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2.5 py-1 rounded text-[var(--matrix-green)]"
+              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2 py-1 rounded text-[11px] sm:text-xs text-[var(--matrix-green)]"
               title="Скачать бэкап (.json)"
             >
-              <Download className="w-3.5 h-3.5" /> EXPORT
+              <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">EXPORT</span>
             </button>
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2.5 py-1 rounded text-[var(--matrix-green)]"
+              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2 py-1 rounded text-[11px] sm:text-xs text-[var(--matrix-green)]"
               title="Загрузить бэкап (.json)"
             >
-              <Upload className="w-3.5 h-3.5" /> IMPORT
+              <Upload className="w-3.5 h-3.5" /> <span className="hidden sm:inline">IMPORT</span>
             </button>
 
             <input 
@@ -283,55 +302,55 @@ export default function Home() {
         </div>
 
         {/* ВКЛАДКИ НАВИГАЦИИ */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 sm:mb-6">
           <button
             onClick={() => setActiveTab("tasks")}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded text-xs font-bold transition-all ${
               activeTab === "tasks"
                 ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
                 : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
             }`}
           >
-            <CheckSquare className="w-4 h-4" /> [⚡ ЗАДАЧИ]
+            <CheckSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> [⚡ ЗАДАЧИ]
           </button>
 
           <button
             onClick={() => setActiveTab("habits")}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded text-xs font-bold transition-all ${
               activeTab === "habits"
                 ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
                 : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
             }`}
           >
-            <Repeat className="w-4 h-4" /> [🔄 ПРИВЫЧКИ]
+            <Repeat className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> [🔄 ПРИВЫЧКИ]
           </button>
 
           <button
             onClick={() => setActiveTab("quests")}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded text-xs font-bold transition-all ${
               activeTab === "quests"
                 ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.6)]"
                 : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-yellow-500/80 hover:border-yellow-500"
             }`}
           >
-            <Trophy className="w-4 h-4" /> [🏆 КВЕСТЫ]
+            <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> [🏆 КВЕСТЫ]
           </button>
 
           <button
             onClick={() => setActiveTab("calendar")}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded text-xs font-bold transition-all ${
               activeTab === "calendar"
                 ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
                 : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
             }`}
           >
-            <Calendar className="w-4 h-4" /> [📅 КАЛЕНДАРЬ]
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> [📅 КАЛЕНДАРЬ]
           </button>
         </div>
 
         {/* УМНАЯ СТРОКА ДОБАВЛЕНИЯ */}
-        <form onSubmit={handleAddItem} className="mb-6 p-4 bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] rounded glow-border space-y-3">
-          <div className="flex flex-col sm:flex-row items-center gap-2.5">
+        <form onSubmit={handleAddItem} className="mb-6 p-3 sm:p-4 bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] rounded glow-border space-y-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5">
             <input 
               type="text"
               value={inputTitle}
@@ -342,15 +361,20 @@ export default function Home() {
                 activeTab === "quests" ? "> Название эпического квеста (напр: Прочитать 5 книг)..." :
                 "> Запланировать задачу в календарь..."
               }
-              className="flex-1 w-full bg-[var(--matrix-bg)] border border-[var(--matrix-border)] focus:border-[var(--matrix-green)] text-white px-3 py-2 rounded text-sm outline-none font-mono"
+              className="flex-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] focus:border-[var(--matrix-green)] text-white px-3 py-2 rounded text-xs sm:text-sm outline-none font-mono"
             />
             
             {(activeTab === "tasks" || activeTab === "habits" || activeTab === "calendar") && (
-              <XpSelector value={selectedXp} onChange={setSelectedXp} />
+              <div className="flex items-center justify-between sm:justify-start gap-2">
+                <XpSelector value={selectedXp} onChange={setSelectedXp} />
+                {(activeTab === "tasks" || activeTab === "calendar") && (
+                  <CyberDatePicker value={inputDueDate} onChange={setInputDueDate} />
+                )}
+              </div>
             )}
 
             {activeTab === "quests" && (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2">
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-yellow-400 font-bold">КВЕСТ:</span>
                   <XpSelector value={questXp} onChange={setQuestXp} compact />
@@ -359,21 +383,14 @@ export default function Home() {
                   <span className="text-[10px] text-yellow-400 font-bold">ЭТАП:</span>
                   <XpSelector value={questSubtaskXp} onChange={setQuestSubtaskXp} compact />
                 </div>
+                <input
+                  type="text"
+                  value={questUnit}
+                  onChange={(e) => setQuestUnit(e.target.value)}
+                  placeholder="Ед. (этапов)"
+                  className="w-24 bg-[var(--matrix-bg)] border border-yellow-500/50 text-yellow-400 px-2 py-1.5 rounded text-xs outline-none font-mono"
+                />
               </div>
-            )}
-
-            {(activeTab === "tasks" || activeTab === "calendar") && (
-              <CyberDatePicker value={inputDueDate} onChange={setInputDueDate} />
-            )}
-
-            {activeTab === "quests" && (
-              <input
-                type="text"
-                value={questUnit}
-                onChange={(e) => setQuestUnit(e.target.value)}
-                placeholder="Ед. (этапов)"
-                className="w-24 bg-[var(--matrix-bg)] border border-yellow-500/50 text-yellow-400 px-2 py-2 rounded text-xs outline-none font-mono"
-              />
             )}
 
             <button 
@@ -438,7 +455,7 @@ export default function Home() {
           )}
         </form>
 
-        {/* ВКЛАДКА 1: ЗАДАЧИ */}
+        {/* ВКЛАДКИ СОДЕРЖИМОГО */}
         {activeTab === "tasks" && (
           <section>
             <h2 className="text-xs font-mono text-[var(--matrix-green)]/80 mb-3 tracking-widest uppercase">
@@ -457,7 +474,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* ВКЛАДКА 2: ПРИВЫЧКИ */}
         {activeTab === "habits" && (
           <section>
             <h2 className="text-xs font-mono text-[var(--matrix-green)]/80 mb-3 tracking-widest uppercase">
@@ -471,7 +487,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* ВКЛАДКА 3: КВЕСТЫ */}
         {activeTab === "quests" && (
           <section>
             <h2 className="text-xs font-mono text-yellow-400/80 mb-3 tracking-widest uppercase">
@@ -486,7 +501,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* ВКЛАДКА 4: КАЛЕНДАРЬ */}
         {activeTab === "calendar" && (
           <section>
             <CalendarView 

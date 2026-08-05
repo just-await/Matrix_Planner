@@ -7,6 +7,8 @@ import { Quest } from "@/components/matrix/QuestTracker";
 import { soundFx } from "@/lib/sound";
 import { getTodayStr, calculateStreak } from "@/lib/utils";
 import { getXpNeededForLevel, getRankForLevel, RankInfo, XP_PRESETS, getPrestigeMultiplier, roundSymmetric } from "@/lib/gamification";
+import { supabase } from "@/lib/supabase";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 const STORAGE_KEY = "matrix_planner_user_data_v3";
 
@@ -15,8 +17,13 @@ export function useMatrixData() {
   const [activeTab, setActiveTab] = useState<"tasks" | "habits" | "quests" | "calendar">("tasks");
   const [matrixRain, setMatrixRain] = useState(false);
 
+  // Пользователь Supabase
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+
+  // Профиль оперативника
+  const [username, setUsername] = useState("OPERATIVE_101");
   const [level, setLevel] = useState(1);
-  const [highestLevel, setHighestLevel] = useState(1); // Максимальный уровень за всё время
+  const [highestLevel, setHighestLevel] = useState(1);
   const [xp, setXp] = useState(0);
   const [prestige, setPrestige] = useState(0);
   const [currentTheme, setCurrentTheme] = useState("classic-matrix");
@@ -31,11 +38,43 @@ export function useMatrixData() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
 
+  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ SUPABASE
   useEffect(() => {
+    // Получаем текущую сессию
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadFromSupabase(session.user.id);
+      } else {
+        loadFromLocalStorage();
+      }
+    });
+
+    // Слушаем изменения авторизации (Вход / Выход)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        loadFromSupabase(currentUser.id);
+      } else {
+        loadFromLocalStorage();
+      }
+    });
+
+    setMounted(true);
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // ЗАГРУЗКА ИЗ LOCAL STORAGE
+  const loadFromLocalStorage = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        setUsername(parsed.username || "OPERATIVE_101");
         setLevel(parsed.level || 1);
         setHighestLevel(parsed.highestLevel || parsed.level || 1);
         setXp(parsed.xp || 0);
@@ -49,13 +88,52 @@ export function useMatrixData() {
     } catch (e) {
       console.error("Ошибка загрузки из localStorage:", e);
     }
-    setMounted(true);
-  }, []);
+  };
 
+  // ЗАГРУЗКА ИЗ SUPABASE
+  const loadFromSupabase = async (userId: string) => {
+    try {
+      // 1. Загрузка профиля
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .single();
+
+      if (profile?.username) {
+        setUsername(profile.username);
+      }
+
+      // 2. Загрузка данных планера
+      const { data: plannerData } = await supabase
+        .from("planner_data")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      if (plannerData) {
+        setLevel(plannerData.level || 1);
+        setHighestLevel(plannerData.highest_level || plannerData.level || 1);
+        setXp(plannerData.xp || 0);
+        setPrestige(plannerData.prestige || 0);
+        setCurrentTheme(plannerData.current_theme || "classic-matrix");
+        setTasks(plannerData.tasks || []);
+        setHabits(plannerData.habits || []);
+        setQuests(plannerData.quests || []);
+      }
+    } catch (e) {
+      console.error("Ошибка скачивания из Supabase:", e);
+    }
+  };
+
+  // АВТОСОХРАНЕНИЕ (LOCAL STORAGE + SUPABASE)
   useEffect(() => {
     if (!mounted) return;
+
+    // Сохранение в Local Storage
     try {
       const dataToSave = { 
+        username,
         level, 
         highestLevel,
         xp, 
@@ -70,12 +148,45 @@ export function useMatrixData() {
     } catch (e) {
       console.error("Ошибка сохранения в localStorage:", e);
     }
-  }, [level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted]);
+
+    // Сохранение в Supabase (если авторизован)
+    if (user) {
+      syncToSupabase(user.id);
+    }
+  }, [username, level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted, user]);
+
+  // ОТПРАВКА В SUPABASE
+  const syncToSupabase = async (userId: string) => {
+    try {
+      // Обновляем профиль
+      await supabase
+        .from("profiles")
+        .update({ username, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+
+      // Обновляем планер
+      await supabase
+        .from("planner_data")
+        .upsert({
+          user_id: userId,
+          level,
+          highest_level: highestLevel,
+          xp,
+          prestige,
+          current_theme: currentTheme,
+          tasks,
+          habits,
+          quests,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+    } catch (e) {
+      console.error("Ошибка синхронизации с Supabase:", e);
+    }
+  };
 
   const applyXpDelta = (baseDelta: number) => {
     if (baseDelta === 0) return;
 
-    // Симметричный расчёт с округлением
     const multiplier = getPrestigeMultiplier(prestige);
     const finalDelta = roundSymmetric(baseDelta * multiplier);
 
@@ -237,7 +348,7 @@ export function useMatrixData() {
   const deleteQuest = (id: string) => setQuests((prev) => prev.filter((q) => q.id !== id));
 
   const exportData = () => {
-    const dataStr = JSON.stringify({ level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests }, null, 2);
+    const dataStr = JSON.stringify({ username, level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests }, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -253,6 +364,7 @@ export function useMatrixData() {
       try {
         const parsed = JSON.parse(e.target?.result as string);
         if (parsed.tasks && parsed.habits && parsed.quests) {
+          setUsername(parsed.username || "OPERATIVE_101");
           setLevel(parsed.level || 1);
           setHighestLevel(parsed.highestLevel || parsed.level || 1);
           setXp(parsed.xp || 0);
@@ -281,6 +393,9 @@ export function useMatrixData() {
     setActiveTab,
     matrixRain,
     setMatrixRain,
+    user,
+    username,
+    setUsername,
     level,
     highestLevel,
     xp,

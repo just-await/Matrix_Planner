@@ -40,6 +40,7 @@ The content is organized as follows:
 </file_summary>
 
 <directory_structure>
+.gitignore
 app/globals.css
 app/layout.tsx
 app/page.tsx
@@ -51,6 +52,7 @@ components/matrix/Header.tsx
 components/matrix/LevelUpModal.tsx
 components/matrix/MatrixRain.tsx
 components/matrix/PrestigeModal.tsx
+components/matrix/ProfileModal.tsx
 components/matrix/ProgressBar.tsx
 components/matrix/QuestTracker.tsx
 components/matrix/TaskCard.tsx
@@ -59,18 +61,31 @@ global.d.ts
 hooks/useMatrixData.ts
 lib/gamification.ts
 lib/sound.ts
+lib/supabase.ts
 lib/themes.ts
 lib/utils.ts
 next-env.d.ts
+next.config.mjs
 package.json
 postcss.config.js
 public/manifest.json
+skills-lock.json
 tailwind.config.js
 tsconfig.json
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+node_modules/
+.next/
+out/
+.env
+.env.local
+.DS_Store
+/lib/generated/prisma
+</file>
 
 <file path="app/globals.css">
 @tailwind base;
@@ -193,9 +208,11 @@ import { MatrixRain } from "@/components/matrix/MatrixRain";
 import { XpSelector } from "@/components/matrix/XpSelector";
 import { LevelUpModal } from "@/components/matrix/LevelUpModal";
 import { PrestigeModal } from "@/components/matrix/PrestigeModal";
+import { ProfileModal } from "@/components/matrix/ProfileModal";
 import { useMatrixData } from "@/hooks/useMatrixData";
 import { getTodayStr, formatDateRu } from "@/lib/utils";
 import { THEMES, getThemeById } from "@/lib/themes";
+import { getRankForLevel } from "@/lib/gamification";
 import { Plus, CheckSquare, Repeat, Calendar, Trophy, CalendarRange, Download, Upload, CloudRain, Palette } from "lucide-react";
 
 export default function Home() {
@@ -207,6 +224,9 @@ export default function Home() {
     setActiveTab,
     matrixRain,
     setMatrixRain,
+    user, // <-- Добавили
+    username,
+    setUsername,
     level,
     highestLevel,
     xp,
@@ -236,6 +256,7 @@ export default function Home() {
 
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -343,15 +364,19 @@ export default function Home() {
     setInputTitle("");
   };
 
+  const currentRank = getRankForLevel(level);
+
   return (
     <div className="min-h-screen bg-[var(--matrix-bg)] text-[var(--matrix-green)] crt-overlay pb-12 font-mono relative transition-colors duration-300">
       <MatrixRain active={matrixRain} themeId={currentTheme} />
 
       <Header 
+        username={username}
         level={level} 
         currentXp={xp} 
         streak={totalStreak} 
         prestige={prestige}
+        onOpenProfileModal={() => setShowProfileModal(true)}
         onOpenThemeModal={() => setShowThemeModal(true)}
         onOpenPrestigeModal={() => setShowPrestigeModal(true)}
       />
@@ -365,6 +390,18 @@ export default function Home() {
         onClose={() => setShowPrestigeModal(false)} 
       />
 
+      <ProfileModal
+        isOpen={showProfileModal}
+        user={user} // <-- Добавили
+        username={username}
+        level={level}
+        rank={currentRank}
+        prestige={prestige}
+        streak={totalStreak}
+        onSaveUsername={setUsername}
+        onClose={() => setShowProfileModal(false)}
+      />
+
       {/* МОДАЛЬНОЕ ОКНО ВЫБОРА ТЕМ */}
       {showThemeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -374,7 +411,6 @@ export default function Home() {
             </h3>
             <div className="space-y-2">
               {THEMES.map((theme) => {
-                // Тема открыта, если разблокирована сейчас, если был престиж, или если уровень достигался ранее
                 const isUnlocked = prestige > 0 || highestLevel >= theme.levelRequired || level >= theme.levelRequired;
                 const isSelected = currentTheme === theme.id;
 
@@ -417,39 +453,37 @@ export default function Home() {
         </div>
       )}
 
-      <main className="max-w-4xl mx-auto px-4 mt-6 relative z-10">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 mt-4 sm:mt-6 relative z-10">
         
         {/* ПАНЕЛЬ ИНСТРУМЕНТОВ */}
         <div className="flex items-center justify-between gap-2 mb-4 bg-[var(--matrix-dark-green)] p-2 rounded border border-[var(--matrix-border)] text-xs">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMatrixRain(!matrixRain)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded border font-bold transition-all ${
-                matrixRain 
-                  ? "bg-[var(--matrix-green)] text-black border-[var(--matrix-green)] shadow-[0_0_8px_var(--matrix-green)]" 
-                  : "bg-[var(--matrix-bg)] border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
-              }`}
-            >
-              <CloudRain className="w-3.5 h-3.5" />
-              RAIN: {matrixRain ? "ON" : "OFF"}
-            </button>
-          </div>
+          <button
+            onClick={() => setMatrixRain(!matrixRain)}
+            className={`flex items-center gap-1 px-2 py-1 rounded border font-bold text-[11px] sm:text-xs transition-all ${
+              matrixRain 
+                ? "bg-[var(--matrix-green)] text-black border-[var(--matrix-green)] shadow-[0_0_8px_var(--matrix-green)]" 
+                : "bg-[var(--matrix-bg)] border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
+            }`}
+          >
+            <CloudRain className="w-3.5 h-3.5" />
+            <span>RAIN: {matrixRain ? "ON" : "OFF"}</span>
+          </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={exportData}
-              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2.5 py-1 rounded text-[var(--matrix-green)]"
+              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2 py-1 rounded text-[11px] sm:text-xs text-[var(--matrix-green)]"
               title="Скачать бэкап (.json)"
             >
-              <Download className="w-3.5 h-3.5" /> EXPORT
+              <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">EXPORT</span>
             </button>
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2.5 py-1 rounded text-[var(--matrix-green)]"
+              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2 py-1 rounded text-[11px] sm:text-xs text-[var(--matrix-green)]"
               title="Загрузить бэкап (.json)"
             >
-              <Upload className="w-3.5 h-3.5" /> IMPORT
+              <Upload className="w-3.5 h-3.5" /> <span className="hidden sm:inline">IMPORT</span>
             </button>
 
             <input 
@@ -465,55 +499,55 @@ export default function Home() {
         </div>
 
         {/* ВКЛАДКИ НАВИГАЦИИ */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 sm:mb-6">
           <button
             onClick={() => setActiveTab("tasks")}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded text-xs font-bold transition-all ${
               activeTab === "tasks"
                 ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
                 : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
             }`}
           >
-            <CheckSquare className="w-4 h-4" /> [⚡ ЗАДАЧИ]
+            <CheckSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> [⚡ ЗАДАЧИ]
           </button>
 
           <button
             onClick={() => setActiveTab("habits")}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded text-xs font-bold transition-all ${
               activeTab === "habits"
                 ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
                 : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
             }`}
           >
-            <Repeat className="w-4 h-4" /> [🔄 ПРИВЫЧКИ]
+            <Repeat className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> [🔄 ПРИВЫЧКИ]
           </button>
 
           <button
             onClick={() => setActiveTab("quests")}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded text-xs font-bold transition-all ${
               activeTab === "quests"
                 ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.6)]"
                 : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-yellow-500/80 hover:border-yellow-500"
             }`}
           >
-            <Trophy className="w-4 h-4" /> [🏆 КВЕСТЫ]
+            <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> [🏆 КВЕСТЫ]
           </button>
 
           <button
             onClick={() => setActiveTab("calendar")}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded text-xs font-bold transition-all ${
               activeTab === "calendar"
                 ? "bg-[var(--matrix-green)] text-black shadow-[0_0_10px_var(--matrix-green)]"
                 : "bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] text-[var(--matrix-green)] hover:border-[var(--matrix-green)]"
             }`}
           >
-            <Calendar className="w-4 h-4" /> [📅 КАЛЕНДАРЬ]
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> [📅 КАЛЕНДАРЬ]
           </button>
         </div>
 
         {/* УМНАЯ СТРОКА ДОБАВЛЕНИЯ */}
-        <form onSubmit={handleAddItem} className="mb-6 p-4 bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] rounded glow-border space-y-3">
-          <div className="flex flex-col sm:flex-row items-center gap-2.5">
+        <form onSubmit={handleAddItem} className="mb-6 p-3 sm:p-4 bg-[var(--matrix-dark-green)] border border-[var(--matrix-border)] rounded glow-border space-y-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5">
             <input 
               type="text"
               value={inputTitle}
@@ -524,15 +558,20 @@ export default function Home() {
                 activeTab === "quests" ? "> Название эпического квеста (напр: Прочитать 5 книг)..." :
                 "> Запланировать задачу в календарь..."
               }
-              className="flex-1 w-full bg-[var(--matrix-bg)] border border-[var(--matrix-border)] focus:border-[var(--matrix-green)] text-white px-3 py-2 rounded text-sm outline-none font-mono"
+              className="flex-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] focus:border-[var(--matrix-green)] text-white px-3 py-2 rounded text-xs sm:text-sm outline-none font-mono"
             />
             
             {(activeTab === "tasks" || activeTab === "habits" || activeTab === "calendar") && (
-              <XpSelector value={selectedXp} onChange={setSelectedXp} />
+              <div className="flex items-center justify-between sm:justify-start gap-2">
+                <XpSelector value={selectedXp} onChange={setSelectedXp} />
+                {(activeTab === "tasks" || activeTab === "calendar") && (
+                  <CyberDatePicker value={inputDueDate} onChange={setInputDueDate} />
+                )}
+              </div>
             )}
 
             {activeTab === "quests" && (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2">
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-yellow-400 font-bold">КВЕСТ:</span>
                   <XpSelector value={questXp} onChange={setQuestXp} compact />
@@ -541,21 +580,14 @@ export default function Home() {
                   <span className="text-[10px] text-yellow-400 font-bold">ЭТАП:</span>
                   <XpSelector value={questSubtaskXp} onChange={setQuestSubtaskXp} compact />
                 </div>
+                <input
+                  type="text"
+                  value={questUnit}
+                  onChange={(e) => setQuestUnit(e.target.value)}
+                  placeholder="Ед. (этапов)"
+                  className="w-24 bg-[var(--matrix-bg)] border border-yellow-500/50 text-yellow-400 px-2 py-1.5 rounded text-xs outline-none font-mono"
+                />
               </div>
-            )}
-
-            {(activeTab === "tasks" || activeTab === "calendar") && (
-              <CyberDatePicker value={inputDueDate} onChange={setInputDueDate} />
-            )}
-
-            {activeTab === "quests" && (
-              <input
-                type="text"
-                value={questUnit}
-                onChange={(e) => setQuestUnit(e.target.value)}
-                placeholder="Ед. (этапов)"
-                className="w-24 bg-[var(--matrix-bg)] border border-yellow-500/50 text-yellow-400 px-2 py-2 rounded text-xs outline-none font-mono"
-              />
             )}
 
             <button 
@@ -620,7 +652,7 @@ export default function Home() {
           )}
         </form>
 
-        {/* ВКЛАДКА 1: ЗАДАЧИ */}
+        {/* ВКЛАДКИ СОДЕРЖИМОГО */}
         {activeTab === "tasks" && (
           <section>
             <h2 className="text-xs font-mono text-[var(--matrix-green)]/80 mb-3 tracking-widest uppercase">
@@ -639,7 +671,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* ВКЛАДКА 2: ПРИВЫЧКИ */}
         {activeTab === "habits" && (
           <section>
             <h2 className="text-xs font-mono text-[var(--matrix-green)]/80 mb-3 tracking-widest uppercase">
@@ -653,7 +684,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* ВКЛАДКА 3: КВЕСТЫ */}
         {activeTab === "quests" && (
           <section>
             <h2 className="text-xs font-mono text-yellow-400/80 mb-3 tracking-widest uppercase">
@@ -668,7 +698,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* ВКЛАДКА 4: КАЛЕНДАРЬ */}
         {activeTab === "calendar" && (
           <section>
             <CalendarView 
@@ -1133,23 +1162,27 @@ export const HabitTracker = ({ habits, onToggleHabitDate, onDeleteHabit }: Habit
 
 import { useState, useEffect } from "react";
 import { soundFx } from "@/lib/sound";
-import { Flame, Shield, Volume2, VolumeX, Palette, Zap, Star } from "lucide-react";
+import { Flame, Shield, Volume2, VolumeX, Palette, Zap, Star, User } from "lucide-react";
 import { getXpNeededForLevel, getRankProgress, toRomanNumeral, getPrestigeMultiplier } from "@/lib/gamification";
 
 interface HeaderProps {
+  username: string;
   level: number;
   currentXp: number;
   streak: number;
   prestige: number;
+  onOpenProfileModal: () => void;
   onOpenThemeModal: () => void;
   onOpenPrestigeModal: () => void;
 }
 
 export const Header = ({
+  username,
   level,
   currentXp,
   streak,
   prestige,
+  onOpenProfileModal,
   onOpenThemeModal,
   onOpenPrestigeModal,
 }: HeaderProps) => {
@@ -1178,61 +1211,76 @@ export const Header = ({
   };
 
   return (
-    <header className="w-full bg-[var(--matrix-dark-green)] border-b border-[var(--matrix-border)] p-4 sticky top-0 z-30 font-mono transition-colors duration-300">
-      <div className="max-w-4xl mx-auto flex flex-col gap-3">
+    <header className="w-full bg-[var(--matrix-dark-green)] border-b border-[var(--matrix-border)] p-3 sm:p-4 sticky top-0 z-30 font-mono transition-colors duration-300">
+      <div className="max-w-4xl mx-auto flex flex-col gap-2.5 sm:gap-3 overflow-hidden">
         
         {/* Верхняя панель */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 border border-[var(--matrix-green)] rounded flex items-center justify-center bg-[var(--matrix-green)]/10 glow-border">
-              <Shield className="w-5 h-5 text-[var(--matrix-green)] animate-pulse" />
+        <div className="flex items-center justify-between gap-2">
+          
+          {/* Логотип, ник и дата */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 border border-[var(--matrix-green)] rounded flex items-center justify-center bg-[var(--matrix-green)]/10 glow-border shrink-0">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--matrix-green)] animate-pulse" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black tracking-widest glow-text uppercase text-[var(--matrix-green)]">
-                  MATRIX<span className="text-white">_PLANNER</span>
-                </h1>
 
-                {/* Звезда и Звание Престижа */}
+            <div className="min-w-0 flex flex-col justify-center gap-1 my-0.5">
+              <h1 className="text-base sm:text-lg font-black tracking-widest glow-text uppercase text-[var(--matrix-green)] truncate leading-none">
+                MATRIX<span className="text-white">_PLANNER</span>
+              </h1>
+
+              {/* Позывной и Престиж */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={onOpenProfileModal}
+                  className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold text-white transition-colors"
+                  title="Открыть профиль оперативника"
+                >
+                  <User className="w-3 h-3 text-[var(--matrix-green)]" />
+                  <span className="truncate max-w-[100px] sm:max-w-none">{username}</span>
+                </button>
+
                 {prestige > 0 && (
                   <span 
                     title={`Престиж ${toRomanNumeral(prestige)} (+${prestigeBonusPercent}% EXP)`}
-                    className="flex items-center gap-1 bg-yellow-500/20 border border-yellow-400 text-yellow-400 px-2 py-0.5 rounded text-[10px] font-bold shadow-[0_0_8px_rgba(234,179,8,0.4)]"
+                    className="flex items-center gap-0.5 sm:gap-1 bg-yellow-500/20 border border-yellow-400 text-yellow-400 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold shadow-[0_0_8px_rgba(234,179,8,0.4)]"
                   >
-                    <Star className="w-3 h-3 fill-yellow-400" />
-                    <span>PRESTIGE {toRomanNumeral(prestige)}</span>
+                    <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-yellow-400" />
+                    <span>P-{toRomanNumeral(prestige)}</span>
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-[var(--matrix-green)]/70 tracking-widest font-bold">
-                SYSTEM_VERSION // {currentDate || "02.08.2026"}
+
+              <p className="text-[9px] sm:text-[10px] text-[var(--matrix-green)]/70 tracking-widest font-bold leading-none">
+                SYS_VER // {currentDate || "03.08.2026"}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Кнопка Перепрошивки появление строго на 30 Уровне */}
+          {/* Инструменты справа */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {level >= 30 && (
               <button
                 onClick={onOpenPrestigeModal}
-                className="flex items-center gap-1 bg-yellow-400 text-black px-2.5 py-1 rounded text-xs font-black animate-pulse shadow-[0_0_12px_rgba(234,179,8,0.8)] hover:bg-yellow-300"
+                className="flex items-center gap-1 bg-yellow-400 text-black px-2 py-1 rounded text-[10px] sm:text-xs font-black animate-pulse shadow-[0_0_12px_rgba(234,179,8,0.8)] hover:bg-yellow-300"
                 title="Активировать протокол перепрошивки Матрицы"
               >
-                <Zap className="w-3.5 h-3.5 fill-black" /> REBIRTH
+                <Zap className="w-3 h-3 fill-black" />
+                <span className="hidden sm:inline">REBIRTH</span>
               </button>
             )}
 
             <button
               onClick={onOpenThemeModal}
-              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] px-2.5 py-1 rounded text-xs font-bold text-[var(--matrix-green)]"
+              className="flex items-center gap-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] p-1.5 sm:px-2.5 sm:py-1 rounded text-xs font-bold text-[var(--matrix-green)]"
               title="Сменить тему терминала"
             >
-              <Palette className="w-3.5 h-3.5" /> THEMES
+              <Palette className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">THEMES</span>
             </button>
 
-            <div className="flex items-center gap-1.5 bg-[var(--matrix-green)]/10 border border-[var(--matrix-border)] px-3 py-1 rounded">
-              <Flame className="w-4 h-4 text-[var(--matrix-green)] animate-bounce" />
-              <span className="text-xs font-bold text-[var(--matrix-green)]">{streak} DAY STREAK</span>
+            <div className="flex items-center gap-1 bg-[var(--matrix-green)]/10 border border-[var(--matrix-border)] px-2 sm:px-3 py-1 rounded text-xs font-bold text-[var(--matrix-green)]">
+              <Flame className="w-3.5 h-3.5 text-[var(--matrix-green)] animate-bounce" />
+              <span>{streak}<span className="hidden sm:inline"> DAY STREAK</span><span className="sm:hidden">d</span></span>
             </div>
 
             <button 
@@ -1240,26 +1288,26 @@ export const Header = ({
               className="p-1.5 border border-[var(--matrix-border)] hover:border-[var(--matrix-green)] rounded bg-[var(--matrix-bg)] transition-colors"
               title="Переключить звук"
             >
-              {muted ? <VolumeX className="w-4 h-4 text-red-500" /> : <Volume2 className="w-4 h-4 text-[var(--matrix-green)]" />}
+              {muted ? <VolumeX className="w-3.5 h-3.5 text-red-500" /> : <Volume2 className="w-3.5 h-3.5 text-[var(--matrix-green)]" />}
             </button>
           </div>
         </div>
 
-        {/* Шкалы прогресса */}
-        <div className="w-full space-y-1.5 pt-1 border-t border-[var(--matrix-border)]">
-          <div className="flex items-center justify-between text-xs font-bold">
-            <div className="flex items-center gap-2">
-              <span className="bg-[var(--matrix-green)]/10 border border-[var(--matrix-green)] text-[var(--matrix-green)] px-2 py-0.5 rounded text-[10px] tracking-wider">
+        {/* Шкалы прогресса БЕЗ лишней разделительной линии */}
+        <div className="w-full space-y-1.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] sm:text-xs font-bold gap-1 sm:gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="bg-[var(--matrix-green)]/10 border border-[var(--matrix-green)] text-[var(--matrix-green)] px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] tracking-wider">
                 RANK: {rankInfo.currentRank.title}
               </span>
-              <span className="text-gray-400 text-[11px]">
-                {rankInfo.nextRank ? `➔ ${rankInfo.nextRank.title}` : "(MAX RANK)"}
+              <span className="text-gray-400 text-[10px] sm:text-[11px]">
+                {rankInfo.nextRank ? `➔ ${rankInfo.nextRank.title}` : "(MAX)"}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-[11px]">
+            <div className="flex items-center justify-between sm:justify-end gap-2 text-[10px] sm:text-[11px]">
               <span className="text-white font-bold">LVL {level}</span>
-              <div className="w-16 h-2 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] rounded overflow-hidden">
+              <div className="flex-1 sm:w-16 h-2 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] rounded overflow-hidden">
                 <div 
                   className="h-full bg-[var(--matrix-green)] transition-all duration-300" 
                   style={{ width: `${xpPercent}%` }}
@@ -1269,7 +1317,7 @@ export const Header = ({
             </div>
           </div>
 
-          <div className="w-full h-3.5 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-0.5 rounded flex gap-1 glow-border">
+          <div className="w-full h-3 sm:h-3.5 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-0.5 rounded flex gap-0.5 sm:gap-1 glow-border">
             {Array.from({ length: totalSegments }).map((_, i) => (
               <div 
                 key={i} 
@@ -1560,6 +1608,338 @@ export const PrestigeModal = ({ isOpen, prestige, onConfirm, onClose }: Prestige
             [ ⚡ REBIRTH ]
           </button>
         </div>
+
+      </div>
+    </div>
+  );
+};
+</file>
+
+<file path="components/matrix/ProfileModal.tsx">
+"use client";
+
+import { useState } from "react";
+import { User as UserIcon, ShieldCheck, Flame, Star, Zap, Save, Check, LogOut, Mail, Lock, Sparkles, KeyRound } from "lucide-react";
+import { RankInfo, toRomanNumeral, getPrestigeMultiplier } from "@/lib/gamification";
+import { supabase } from "@/lib/supabase";
+import { User as SupabaseUser } from "@supabase/supabase-js";
+
+interface ProfileModalProps {
+  isOpen: boolean;
+  user: SupabaseUser | null;
+  username: string;
+  level: number;
+  rank: RankInfo;
+  prestige: number;
+  streak: number;
+  onSaveUsername: (newUsername: string) => void;
+  onClose: () => void;
+}
+
+export const ProfileModal = ({
+  isOpen,
+  user,
+  username,
+  level,
+  rank,
+  prestige,
+  streak,
+  onSaveUsername,
+  onClose,
+}: ProfileModalProps) => {
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [inputName, setInputName] = useState(username);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  if (!isOpen) return null;
+
+  // Вход по Email / Паролю
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setLoading(true);
+
+    try {
+      if (authMode === "register") {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { username: inputName.trim().toUpperCase() || "OPERATIVE_101" },
+          },
+        });
+        if (error) throw error;
+        alert("Регистрация успешна! Проверьте почту для подтверждения или войдите.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Ошибка авторизации";
+      setErrorMsg(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Вход через Google
+  const handleGoogleAuth = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+        },
+      });
+      if (error) throw error;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Ошибка Google Входа";
+      setErrorMsg(message);
+      setLoading(false);
+    }
+  };
+
+  // Выход из аккаунта
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const handleSaveName = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputName.trim()) return;
+    onSaveUsername(inputName.trim().toUpperCase());
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 2000);
+  };
+
+  const prestigeBonusPercent = Math.round((getPrestigeMultiplier(prestige) - 1) * 100);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in font-mono">
+      <div className="bg-[var(--matrix-dark-green)] border border-[var(--matrix-green)] p-4 sm:p-6 rounded-lg max-w-md w-full relative glow-border space-y-4 max-h-[90vh] overflow-y-auto">
+        
+        {/* Шапка */}
+        <div className="flex items-center justify-between border-b border-[var(--matrix-border)] pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded border border-[var(--matrix-green)] bg-[var(--matrix-green)]/10 flex items-center justify-center">
+              <UserIcon className="w-4 h-4 text-[var(--matrix-green)]" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white tracking-widest uppercase">
+                OPERATIVE_PROFILE
+              </h3>
+              <p className="text-[10px] text-[var(--matrix-green)]/70">
+                STATUS: {user ? "🟢 ONLINE (CLOUD SYNC)" : "🟡 GUEST (LOCAL STORAGE)"}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white p-1 text-xs border border-[var(--matrix-border)] rounded px-2"
+          >
+            ESC
+          </button>
+        </div>
+
+        {/* ЕСЛИ ПОЛЬЗОВАТЕЛЬ АВТОРИЗОВАН */}
+        {user ? (
+          <div className="space-y-4">
+            {/* Смена позывного */}
+            <form onSubmit={handleSaveName} className="space-y-2">
+              <label className="text-[10px] text-[var(--matrix-green)] uppercase font-bold tracking-wider block">
+                // CALLSIGN / ПОЗЫВНОЙ ОПЕРАТИВНИКА:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={inputName}
+                  onChange={(e) => setInputName(e.target.value)}
+                  maxLength={20}
+                  className="flex-1 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] focus:border-[var(--matrix-green)] text-white px-3 py-1.5 rounded text-xs outline-none font-mono font-bold tracking-wider"
+                />
+                <button
+                  type="submit"
+                  className="bg-[var(--matrix-green)] text-black px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 hover:bg-[#00CC52] shrink-0"
+                >
+                  {savedSuccess ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>{savedSuccess ? "SAVED" : "SAVE"}</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Данные аккаунта */}
+            <div className="bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-3 rounded text-xs space-y-1">
+              <p className="text-gray-400 text-[10px] uppercase font-bold">ПРИВЯЗАННЫЙ EMAIL:</p>
+              <p className="text-white font-bold truncate">{user.email}</p>
+            </div>
+
+            {/* Статистика */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-2.5 rounded space-y-1">
+                <span className="text-[9px] text-gray-400 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-[var(--matrix-green)]" /> РАНГ:
+                </span>
+                <p className="font-bold text-[var(--matrix-green)] text-[11px] truncate">
+                  {rank.title}
+                </p>
+              </div>
+
+              <div className="bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-2.5 rounded space-y-1">
+                <span className="text-[9px] text-gray-400 flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-[var(--matrix-green)]" /> УРОВЕНЬ:
+                </span>
+                <p className="font-bold text-white text-[11px]">
+                  LVL {level}
+                </p>
+              </div>
+
+              <div className="bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-2.5 rounded space-y-1">
+                <span className="text-[9px] text-gray-400 flex items-center gap-1">
+                  <Star className="w-3 h-3 text-yellow-400" /> ПРЕСТИЖ:
+                </span>
+                <p className="font-bold text-yellow-400 text-[11px]">
+                  {prestige > 0 ? `★ PRESTIGE ${toRomanNumeral(prestige)} (+${prestigeBonusPercent}%)` : "— NONE —"}
+                </p>
+              </div>
+
+              <div className="bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-2.5 rounded space-y-1">
+                <span className="text-[9px] text-gray-400 flex items-center gap-1">
+                  <Flame className="w-3 h-3 text-[var(--matrix-green)]" /> СТРИК:
+                </span>
+                <p className="font-bold text-[var(--matrix-green)] text-[11px]">
+                  {streak} ДНЕЙ
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="w-full bg-red-500/10 border border-red-500/40 text-red-400 hover:bg-red-500/20 py-2 rounded text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" /> ВЫЙТИ ИЗ АККАУНТА
+            </button>
+          </div>
+        ) : (
+          /* ЕСЛИ ГОСТЬ — ФОРМА ВХОДА И РЕГИСТРАЦИИ */
+          <div className="space-y-4">
+            <div className="flex border-b border-[var(--matrix-border)] text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setAuthMode("login")}
+                className={`flex-1 py-2 text-center transition-colors ${
+                  authMode === "login"
+                    ? "border-b-2 border-[var(--matrix-green)] text-[var(--matrix-green)]"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                [ 🔑 ВХОД ]
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode("register")}
+                className={`flex-1 py-2 text-center transition-colors ${
+                  authMode === "register"
+                    ? "border-b-2 border-[var(--matrix-green)] text-[var(--matrix-green)]"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                [ ⚡ РЕГИСТРАЦИЯ ]
+              </button>
+            </div>
+
+            {errorMsg && (
+              <div className="p-2.5 bg-red-500/10 border border-red-500/40 text-red-400 text-xs rounded">
+                {errorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleEmailAuth} className="space-y-3">
+              {authMode === "register" && (
+                <div>
+                  <label className="text-[10px] text-gray-400 block mb-1">ПОЗЫВНОЙ (CALLSIGN):</label>
+                  <input
+                    type="text"
+                    value={inputName}
+                    onChange={(e) => setInputName(e.target.value)}
+                    placeholder="NEO_99"
+                    required
+                    className="w-full bg-[var(--matrix-bg)] border border-[var(--matrix-border)] text-white px-3 py-1.5 rounded text-xs outline-none focus:border-[var(--matrix-green)]"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-1 flex items-center gap-1">
+                  <Mail className="w-3 h-3 text-[var(--matrix-green)]" /> EMAIL:
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="agent@matrix.net"
+                  required
+                  className="w-full bg-[var(--matrix-bg)] border border-[var(--matrix-border)] text-white px-3 py-1.5 rounded text-xs outline-none focus:border-[var(--matrix-green)]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-gray-400 block mb-1 flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-[var(--matrix-green)]" /> ПАРОЛЬ:
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="w-full bg-[var(--matrix-bg)] border border-[var(--matrix-border)] text-white px-3 py-1.5 rounded text-xs outline-none focus:border-[var(--matrix-green)]"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[var(--matrix-green)] text-black font-bold py-2 rounded text-xs hover:bg-[#00CC52] transition-colors disabled:opacity-50"
+              >
+                {loading ? "АВТОРИЗАЦИЯ..." : authMode === "login" ? "[ ⚡ ВОЙТИ В СИСТЕМУ ]" : "[ ⚡ СОЗДАТЬ АККАУНТ ]"}
+              </button>
+            </form>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-[var(--matrix-border)]"></div>
+              <span className="flex-shrink mx-2 text-[9px] text-gray-500 uppercase">ИЛИ</span>
+              <div className="flex-grow border-t border-[var(--matrix-border)]"></div>
+            </div>
+
+            {/* Вход через Google */}
+            <button
+              type="button"
+              onClick={handleGoogleAuth}
+              disabled={loading}
+              className="w-full bg-white/5 border border-white/20 hover:border-yellow-400 text-white font-bold py-2 rounded text-xs flex items-center justify-center gap-2 transition-colors"
+            >
+              <Sparkles className="w-4 h-4 text-yellow-400" />
+              <span>ПРОДОЛЖИТЬ ЧЕРЕЗ GOOGLE</span>
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={onClose}
+          className="w-full bg-[var(--matrix-bg)] border border-[var(--matrix-border)] text-gray-300 py-2 rounded text-xs hover:border-[var(--matrix-green)] transition-colors"
+        >
+          ЗАКРЫТЬ
+        </button>
 
       </div>
     </div>
@@ -1968,6 +2348,8 @@ import { Quest } from "@/components/matrix/QuestTracker";
 import { soundFx } from "@/lib/sound";
 import { getTodayStr, calculateStreak } from "@/lib/utils";
 import { getXpNeededForLevel, getRankForLevel, RankInfo, XP_PRESETS, getPrestigeMultiplier, roundSymmetric } from "@/lib/gamification";
+import { supabase } from "@/lib/supabase";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 const STORAGE_KEY = "matrix_planner_user_data_v3";
 
@@ -1976,8 +2358,13 @@ export function useMatrixData() {
   const [activeTab, setActiveTab] = useState<"tasks" | "habits" | "quests" | "calendar">("tasks");
   const [matrixRain, setMatrixRain] = useState(false);
 
+  // Пользователь Supabase
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+
+  // Профиль оперативника
+  const [username, setUsername] = useState("OPERATIVE_101");
   const [level, setLevel] = useState(1);
-  const [highestLevel, setHighestLevel] = useState(1); // Максимальный уровень за всё время
+  const [highestLevel, setHighestLevel] = useState(1);
   const [xp, setXp] = useState(0);
   const [prestige, setPrestige] = useState(0);
   const [currentTheme, setCurrentTheme] = useState("classic-matrix");
@@ -1992,11 +2379,43 @@ export function useMatrixData() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
 
+  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ SUPABASE
   useEffect(() => {
+    // Получаем текущую сессию
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadFromSupabase(session.user.id);
+      } else {
+        loadFromLocalStorage();
+      }
+    });
+
+    // Слушаем изменения авторизации (Вход / Выход)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        loadFromSupabase(currentUser.id);
+      } else {
+        loadFromLocalStorage();
+      }
+    });
+
+    setMounted(true);
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // ЗАГРУЗКА ИЗ LOCAL STORAGE
+  const loadFromLocalStorage = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        setUsername(parsed.username || "OPERATIVE_101");
         setLevel(parsed.level || 1);
         setHighestLevel(parsed.highestLevel || parsed.level || 1);
         setXp(parsed.xp || 0);
@@ -2010,13 +2429,52 @@ export function useMatrixData() {
     } catch (e) {
       console.error("Ошибка загрузки из localStorage:", e);
     }
-    setMounted(true);
-  }, []);
+  };
 
+  // ЗАГРУЗКА ИЗ SUPABASE
+  const loadFromSupabase = async (userId: string) => {
+    try {
+      // 1. Загрузка профиля
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .single();
+
+      if (profile?.username) {
+        setUsername(profile.username);
+      }
+
+      // 2. Загрузка данных планера
+      const { data: plannerData } = await supabase
+        .from("planner_data")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      if (plannerData) {
+        setLevel(plannerData.level || 1);
+        setHighestLevel(plannerData.highest_level || plannerData.level || 1);
+        setXp(plannerData.xp || 0);
+        setPrestige(plannerData.prestige || 0);
+        setCurrentTheme(plannerData.current_theme || "classic-matrix");
+        setTasks(plannerData.tasks || []);
+        setHabits(plannerData.habits || []);
+        setQuests(plannerData.quests || []);
+      }
+    } catch (e) {
+      console.error("Ошибка скачивания из Supabase:", e);
+    }
+  };
+
+  // АВТОСОХРАНЕНИЕ (LOCAL STORAGE + SUPABASE)
   useEffect(() => {
     if (!mounted) return;
+
+    // Сохранение в Local Storage
     try {
       const dataToSave = { 
+        username,
         level, 
         highestLevel,
         xp, 
@@ -2031,12 +2489,45 @@ export function useMatrixData() {
     } catch (e) {
       console.error("Ошибка сохранения в localStorage:", e);
     }
-  }, [level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted]);
+
+    // Сохранение в Supabase (если авторизован)
+    if (user) {
+      syncToSupabase(user.id);
+    }
+  }, [username, level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted, user]);
+
+  // ОТПРАВКА В SUPABASE
+  const syncToSupabase = async (userId: string) => {
+    try {
+      // Обновляем профиль
+      await supabase
+        .from("profiles")
+        .update({ username, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+
+      // Обновляем планер
+      await supabase
+        .from("planner_data")
+        .upsert({
+          user_id: userId,
+          level,
+          highest_level: highestLevel,
+          xp,
+          prestige,
+          current_theme: currentTheme,
+          tasks,
+          habits,
+          quests,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+    } catch (e) {
+      console.error("Ошибка синхронизации с Supabase:", e);
+    }
+  };
 
   const applyXpDelta = (baseDelta: number) => {
     if (baseDelta === 0) return;
 
-    // Симметричный расчёт с округлением
     const multiplier = getPrestigeMultiplier(prestige);
     const finalDelta = roundSymmetric(baseDelta * multiplier);
 
@@ -2198,7 +2689,7 @@ export function useMatrixData() {
   const deleteQuest = (id: string) => setQuests((prev) => prev.filter((q) => q.id !== id));
 
   const exportData = () => {
-    const dataStr = JSON.stringify({ level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests }, null, 2);
+    const dataStr = JSON.stringify({ username, level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests }, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -2214,6 +2705,7 @@ export function useMatrixData() {
       try {
         const parsed = JSON.parse(e.target?.result as string);
         if (parsed.tasks && parsed.habits && parsed.quests) {
+          setUsername(parsed.username || "OPERATIVE_101");
           setLevel(parsed.level || 1);
           setHighestLevel(parsed.highestLevel || parsed.level || 1);
           setXp(parsed.xp || 0);
@@ -2242,6 +2734,9 @@ export function useMatrixData() {
     setActiveTab,
     matrixRain,
     setMatrixRain,
+    user,
+    username,
+    setUsername,
     level,
     highestLevel,
     xp,
@@ -2510,6 +3005,16 @@ class SoundSystem {
 export const soundFx = new SoundSystem();
 </file>
 
+<file path="lib/supabase.ts">
+// lib/supabase.ts
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+</file>
+
 <file path="lib/themes.ts">
 // lib/themes.ts
 
@@ -2680,8 +3185,20 @@ export function calculateStreak(history: Record<string, boolean>): number {
 // see https://nextjs.org/docs/basic-features/typescript for more information.
 </file>
 
+<file path="next.config.mjs">
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export', // Включает статический экспорт HTML/CSS/JS
+  images: {
+    unoptimized: true, // Отключает серверную оптимизацию картинок
+  },
+};
+
+export default nextConfig;
+</file>
+
 <file path="package.json">
-{"name":"matrix-bar","version":"0.1.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start"},"dependencies":{"clsx":"^2.1.1","lucide-react":"^0.427.0","next":"14.2.5","react":"^18.3.1","react-dom":"^18.3.1","tailwind-merge":"^2.5.2"},"devDependencies":{"@types/node":"^20","@types/react":"^18","@types/react-dom":"^18","autoprefixer":"^10.4.20","postcss":"^8.4.41","tailwindcss":"^3.4.9","typescript":"^5"}}
+{"name":"matrix-bar","version":"0.1.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start"},"dependencies":{"@supabase/ssr":"^0.12.4","@supabase/supabase-js":"^2.112.0","clsx":"^2.1.1","lucide-react":"^0.427.0","next":"14.2.5","react":"^18.3.1","react-dom":"^18.3.1","tailwind-merge":"^2.5.2"},"devDependencies":{"@types/node":"^20","@types/react":"^18","@types/react-dom":"^18","autoprefixer":"^10.4.20","postcss":"^8.4.41","tailwindcss":"^3.4.9","typescript":"^5"}}
 </file>
 
 <file path="postcss.config.js">
@@ -2704,6 +3221,68 @@ module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } };
       "type": "image/x-icon"
     }
   ]
+}
+</file>
+
+<file path="skills-lock.json">
+{
+  "version": 1,
+  "skills": {
+    "prisma-cli": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-cli/SKILL.md",
+      "computedHash": "b92e55aef78f6796d81433c44738a6733211a04c16e65cbad6d42c5f71092aab"
+    },
+    "prisma-client-api": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-client-api/SKILL.md",
+      "computedHash": "5dcc0793337151efa73a444e5adbc7e1c24180778e83b4fe94c9109c391bd333"
+    },
+    "prisma-compute": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-compute/SKILL.md",
+      "computedHash": "fbbdcf3e01ed876113d18804d38d17359d9f7ba7a4bd353193673d5924f19818"
+    },
+    "prisma-database-setup": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-database-setup/SKILL.md",
+      "computedHash": "0911d9454bd48df3badd23a50fd90a280eabb15dcbd472c14e7b729075dadefb"
+    },
+    "prisma-driver-adapter-implementation": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-driver-adapter-implementation/SKILL.md",
+      "computedHash": "07484627aea6cce4d0f94b4090ff9acc0caa7e104f9988b95abecf80132f4103"
+    },
+    "prisma-mongodb-upgrade": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-mongodb-upgrade/SKILL.md",
+      "computedHash": "f9ba440e88ca4cec9801d04762296e29e99ca08cb8a8156e4f783ecf90279c8f"
+    },
+    "prisma-postgres": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-postgres/SKILL.md",
+      "computedHash": "d669fbd0d8017d16c967f18b20e1c1345cd4a2a0076d762459bfef79f551f655"
+    },
+    "prisma-postgres-setup": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-postgres-setup/SKILL.md",
+      "computedHash": "c89d3aa91285d8e4964fcaa5238c99a3d3c20b617e032e731cf632330a85a5a6"
+    },
+    "prisma-upgrade-v7": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-upgrade-v7/SKILL.md",
+      "computedHash": "dcc6c71adca6b22f37c5bda5ac7fd63c3bb59495596a22e06a29c7c85371558f"
+    }
+  }
 }
 </file>
 
