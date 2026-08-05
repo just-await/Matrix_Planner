@@ -19,6 +19,9 @@ export function useMatrixData() {
 
   // Пользователь Supabase
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  
+  // Флаг безопасности: запрещает автосохранение до окончания скачивания из облака
+  const [isLoadedFromCloud, setIsLoadedFromCloud] = useState(false);
 
   // Профиль оперативника
   const [username, setUsername] = useState("OPERATIVE_101");
@@ -38,15 +41,17 @@ export function useMatrixData() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
 
-  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И ОЧИСТКА ХЭША В URL
+  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И БЕЗОПАСНАЯ ЗАГРУЗКА
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
+        setIsLoadedFromCloud(false);
         loadFromSupabase(currentUser.id);
       } else {
         loadFromLocalStorage();
+        setIsLoadedFromCloud(true);
       }
     });
 
@@ -54,8 +59,9 @@ export function useMatrixData() {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
+        setIsLoadedFromCloud(false); // Запрещаем автосохранение при входе!
         loadFromSupabase(currentUser.id);
-        // Очищаем решетку '#' из URL после редиректа OAuth
+
         if (typeof window !== "undefined" && window.location.hash) {
           setTimeout(() => {
             window.history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -63,6 +69,7 @@ export function useMatrixData() {
         }
       } else {
         loadFromLocalStorage();
+        setIsLoadedFromCloud(true);
       }
     });
 
@@ -94,8 +101,10 @@ export function useMatrixData() {
     }
   };
 
+  // СКАЧИВАНИЕ ИЗ SUPABASE БЕЗ РИСКА ПЕРЕЗАПИСИ
   const loadFromSupabase = async (userId: string) => {
     try {
+      // 1. Загрузка профиля
       const { data: profile } = await supabase
         .from("profiles")
         .select("username")
@@ -106,6 +115,7 @@ export function useMatrixData() {
         setUsername(profile.username);
       }
 
+      // 2. Загрузка планера
       const { data: plannerData } = await supabase
         .from("planner_data")
         .select("*")
@@ -124,9 +134,13 @@ export function useMatrixData() {
       }
     } catch (e) {
       console.error("Ошибка скачивания из Supabase:", e);
+    } finally {
+      // ТОЛЬКО ПОСЛЕ ЗАВЕРШЕНИЯ СКАЧИВАНИЯ снимаем замок автосохранения!
+      setIsLoadedFromCloud(true);
     }
   };
 
+  // 3. БЕЗОПАСНОЕ АВТОСОХРАНЕНИЕ
   useEffect(() => {
     if (!mounted) return;
 
@@ -148,10 +162,11 @@ export function useMatrixData() {
       console.error("Ошибка сохранения в localStorage:", e);
     }
 
-    if (user) {
+    // Сохраняем в облако ТОЛЬКО ЕСЛИ данные уже полностью скачаны!
+    if (user && isLoadedFromCloud) {
       syncToSupabase(user.id);
     }
-  }, [username, level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted, user]);
+  }, [username, level, highestLevel, xp, prestige, currentTheme, tasks, habits, quests, matrixRain, mounted, user, isLoadedFromCloud]);
 
   const syncToSupabase = async (userId: string) => {
     try {
