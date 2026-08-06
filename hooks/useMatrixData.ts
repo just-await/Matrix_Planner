@@ -42,14 +42,14 @@ export function useMatrixData() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
 
-  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И СБРОС ПРИ ВЫХОДЕ
+  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И УМНАЯ ЗАГРУЗКА
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
         setIsLoadedFromCloud(false);
-        loadFromSupabase(currentUser.id);
+        loadFromSupabase(currentUser);
       } else {
         loadFromLocalStorage();
         setIsLoadedFromCloud(true);
@@ -60,7 +60,6 @@ export function useMatrixData() {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
-      // ЕСЛИ НАЖАТА КНОПКА ВЫХОДА (SIGNED_OUT) — СТИРАЕМ ДАННЫЕ И СБРАСЫВАЕМ К ЧИСТОМУ ТЕРМИНАЛУ
       if (event === "SIGNED_OUT") {
         try {
           localStorage.removeItem(STORAGE_KEY);
@@ -71,7 +70,7 @@ export function useMatrixData() {
         setIsLoadedFromCloud(true);
       } else if (currentUser) {
         setIsLoadedFromCloud(false);
-        loadFromSupabase(currentUser.id);
+        loadFromSupabase(currentUser);
       } else {
         loadFromLocalStorage();
         setIsLoadedFromCloud(true);
@@ -85,7 +84,7 @@ export function useMatrixData() {
     };
   }, []);
 
-  // Очистка хэша '#' из URL после входа
+  // Очистка символа '#' из URL после входа
   useEffect(() => {
     if (typeof window !== "undefined" && (window.location.hash || window.location.href.includes("#"))) {
       const timer = setTimeout(() => {
@@ -96,7 +95,6 @@ export function useMatrixData() {
     }
   }, [user]);
 
-  // Полный сброс состояния до чистого первого запуска
   const resetToDefaultState = () => {
     setUsername("OPERATIVE_101");
     setLevel(1);
@@ -132,25 +130,45 @@ export function useMatrixData() {
     }
   };
 
-  const loadFromSupabase = async (userId: string) => {
+  // УМНАЯ СИНХРОНИЗАЦИЯ: МИГРАЦИЯ ДЛЯ НОВИЧКОВ VS СКАЧИВАНИЕ ДЛЯ СТАРЫХ АКТИВОВ
+  const loadFromSupabase = async (currentUser: SupabaseUser) => {
     try {
+      const userId = currentUser.id;
+
+      // Проверяем, является ли это ПЕРВИЧНОЙ РЕГИСТРАЦИЕЙ аккаунта
+      const createdAt = new Date(currentUser.created_at).getTime();
+      const lastSignIn = currentUser.last_sign_in_at ? new Date(currentUser.last_sign_in_at).getTime() : createdAt;
+      const isNewRegistration = Math.abs(lastSignIn - createdAt) < 15000; // Разница менее 15 секунд
+
+      // 1. Загрузка профиля из Supabase
       const { data: profile } = await supabase
         .from("profiles")
         .select("username")
         .eq("id", userId)
         .single();
 
-      if (profile?.username) {
-        setUsername(profile.username);
-      }
-
+      // 2. Загрузка планера из Supabase
       const { data: plannerData } = await supabase
         .from("planner_data")
         .select("*")
         .eq("user_id", userId)
         .single();
 
-      if (plannerData) {
+      // Есть ли у гостя натыканный локальный прогресс до регистрации?
+      const hasLocalGuestData = tasks.length > 0 || habits.length > 0 || quests.length > 0 || level > 1 || xp > 0;
+
+      // СЦЕНАРИЙ А: Новичок только что зарегистрировался И у него был локальный прогресс -> МИГРАЦИЯ В ОБЛАКО!
+      if (isNewRegistration && hasLocalGuestData) {
+        await syncToSupabase(userId);
+        if (profile?.username && profile.username !== "OPERATIVE_101") {
+          setUsername(profile.username);
+        }
+      } 
+      // СЦЕНАРИЙ Б: Старый аккаунт или повторный вход -> ВОССТАНОВЛЕНИЕ ДАННЫХ ИЗ ОБЛАКА!
+      else if (plannerData) {
+        if (profile?.username) {
+          setUsername(profile.username);
+        }
         setLevel(plannerData.level || 1);
         setHighestLevel(plannerData.highest_level || plannerData.level || 1);
         setXp(plannerData.xp || 0);
@@ -161,7 +179,7 @@ export function useMatrixData() {
         setQuests(plannerData.quests || []);
       }
     } catch (e) {
-      console.error("Ошибка скачивания из Supabase:", e);
+      console.error("Ошибка синхронизации с Supabase:", e);
     } finally {
       setIsLoadedFromCloud(true);
     }
@@ -216,7 +234,7 @@ export function useMatrixData() {
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id" });
     } catch (e) {
-      console.error("Ошибка синхронизации с Supabase:", e);
+      console.error("Ошибка сохранения в Supabase:", e);
     }
   };
 
