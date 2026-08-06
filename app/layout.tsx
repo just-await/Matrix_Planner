@@ -1,11 +1,35 @@
+// app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Matrix Planner - Cyberpunk Planner & Tracker",
-  description: "Gamified planner and tracker in Matrix style",
+  title: "Matrix Planner - Gamified Tracker",
+  description: "Преврати свою рутину, задачи и цели в RPG-игру с прокачкой уровня и престижем.",
+  metadataBase: new URL("https://matrix-planner-five.vercel.app"),
   manifest: "/manifest.json",
+  openGraph: {
+    title: "MATRIX PLANNER // Planner & Tracker",
+    description: "Геймифицированный планер и трекер задач в стиле ретро-терминала Матрицы.",
+    url: "https://matrix-planner-five.vercel.app",
+    siteName: "Matrix Planner",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Matrix Planner Link Preview",
+      },
+    ],
+    locale: "ru_RU",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MATRIX PLANNER",
+    description: "Геймифицированный планер и трекер задач в стиле Матрицы",
+    images: ["/og-image.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -33,7 +57,6 @@ export default function RootLayout({
           src="https://telegram.org/js/telegram-web-app.js" 
           strategy="beforeInteractive" 
         />
-        {/* Автоматическая регистрация PWA Service Worker */}
         <script
           dangerouslySetInnerHTML={{
             __html: `

@@ -51,20 +51,20 @@ export const Header = ({
   };
 
   return (
-    <header className="w-full bg-[var(--matrix-dark-green)] border-b border-[var(--matrix-border)] p-3 sm:p-4 sticky top-0 z-30 font-mono transition-colors duration-300">
-      <div className="max-w-4xl mx-auto flex flex-col gap-2.5 sm:gap-3 overflow-hidden">
+    <header className="w-full bg-[var(--matrix-dark-green)] border-b border-[var(--matrix-border)] px-3 py-3.5 sm:px-4 sm:py-4 sticky top-0 z-30 font-mono transition-colors duration-300">
+      <div className="max-w-4xl mx-auto flex flex-col gap-2.5 sm:gap-3">
         
         {/* Верхняя панель */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 pt-0.5">
           
-          {/* Логотип, ник и дата */}
+          {/* Логотип, ник и дата без обрезки свечения */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 border border-[var(--matrix-green)] rounded flex items-center justify-center bg-[var(--matrix-green)]/10 glow-border shrink-0">
               <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--matrix-green)] animate-pulse" />
             </div>
 
-            <div className="min-w-0 flex flex-col justify-center gap-1 my-0.5">
-              <h1 className="text-base sm:text-lg font-black tracking-widest glow-text uppercase text-[var(--matrix-green)] truncate leading-none">
+            <div className="min-w-0 flex flex-col justify-center gap-1 my-0.5 overflow-visible">
+              <h1 className="text-base sm:text-lg font-black tracking-widest glow-text uppercase text-[var(--matrix-green)] whitespace-nowrap leading-normal py-0.5">
                 MATRIX<span className="text-white">_PLANNER</span>
               </h1>
 
@@ -91,7 +91,7 @@ export const Header = ({
               </div>
 
               <p className="text-[9px] sm:text-[10px] text-[var(--matrix-green)]/70 tracking-widest font-bold leading-none">
-                SYS_VER // {currentDate || "03.08.2026"}
+                SYS_VER // {currentDate || "06.08.2026"}
               </p>
             </div>
           </div>
@@ -133,8 +133,8 @@ export const Header = ({
           </div>
         </div>
 
-        {/* Шкалы прогресса БЕЗ лишней разделительной линии */}
-        <div className="w-full space-y-1.5">
+        {/* Шкалы прогресса */}
+        <div className="w-full space-y-1.5 pb-0.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] sm:text-xs font-bold gap-1 sm:gap-2">
             <div className="flex items-center gap-1.5">
               <span className="bg-[var(--matrix-green)]/10 border border-[var(--matrix-green)] text-[var(--matrix-green)] px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] tracking-wider">
@@ -157,7 +157,7 @@ export const Header = ({
             </div>
           </div>
 
-          <div className="w-full h-3 sm:h-3.5 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-0.5 rounded flex gap-0.5 sm:gap-1 glow-border">
+          <div className="w-full h-3 sm:h-3.5 bg-[var(--matrix-bg)] border border-[var(--matrix-border)] p-0.5 rounded flex gap-0.5 sm:gap-1 glow-border my-0.5">
             {Array.from({ length: totalSegments }).map((_, i) => (
               <div 
                 key={i} 
