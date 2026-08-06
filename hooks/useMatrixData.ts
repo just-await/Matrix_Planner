@@ -17,6 +17,7 @@ export function useMatrixData() {
   const [activeTab, setActiveTab] = useState<"tasks" | "habits" | "quests" | "calendar">("tasks");
   const [matrixRain, setMatrixRain] = useState(false);
 
+  // Пользователь Supabase
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoadedFromCloud, setIsLoadedFromCloud] = useState(false);
 
@@ -41,6 +42,7 @@ export function useMatrixData() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
 
+  // 1. ПОДПИСКА НА АВТОРИЗАЦИЮ И СБРОС ПРИ ВЫХОДЕ
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
@@ -54,10 +56,20 @@ export function useMatrixData() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      if (currentUser) {
+
+      // ЕСЛИ НАЖАТА КНОПКА ВЫХОДА (SIGNED_OUT) — СТИРАЕМ ДАННЫЕ И СБРАСЫВАЕМ К ЧИСТОМУ ТЕРМИНАЛУ
+      if (event === "SIGNED_OUT") {
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch (e) {
+          console.error(e);
+        }
+        resetToDefaultState();
+        setIsLoadedFromCloud(true);
+      } else if (currentUser) {
         setIsLoadedFromCloud(false);
         loadFromSupabase(currentUser.id);
       } else {
@@ -73,6 +85,7 @@ export function useMatrixData() {
     };
   }, []);
 
+  // Очистка хэша '#' из URL после входа
   useEffect(() => {
     if (typeof window !== "undefined" && (window.location.hash || window.location.href.includes("#"))) {
       const timer = setTimeout(() => {
@@ -82,6 +95,20 @@ export function useMatrixData() {
       return () => clearTimeout(timer);
     }
   }, [user]);
+
+  // Полный сброс состояния до чистого первого запуска
+  const resetToDefaultState = () => {
+    setUsername("OPERATIVE_101");
+    setLevel(1);
+    setHighestLevel(1);
+    setXp(0);
+    setPrestige(0);
+    setCurrentTheme("classic-matrix");
+    setExpandedQuestIds({});
+    setTasks([]);
+    setHabits([]);
+    setQuests([]);
+  };
 
   const loadFromLocalStorage = () => {
     try {
@@ -193,7 +220,6 @@ export function useMatrixData() {
     }
   };
 
-  // Переключение развернутости квеста
   const toggleQuestExpanded = (questId: string) => {
     setExpandedQuestIds(prev => ({
       ...prev,
